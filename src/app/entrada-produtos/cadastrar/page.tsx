@@ -64,23 +64,35 @@ export default function CadastrarProduto() {
       qrCodeInputRef.current.focus();
     }
   }, []);
+
   useEffect(() => {
     const fetchIp = async () => {
       try {
         const response = await fetch("/api/ip");
         const data = await response.json();
-        setIp(data.ip)
-        setServerUrl(`http://${data.ip}:3000`);
+
+        const isProd = process.env.NODE_ENV === "production";
+        const protocol = isProd ? "https://" : "http://";
+        setIp(data.ip);
+        setServerUrl(`${protocol}${data.ip}:3000`);
       } catch (error) {
         console.error("Erro ao buscar IP:", error);
-        setServerUrl("http://127.0.0.1:3000"); // Fallback
+        setServerUrl("http://localhost:3000"); // Fallback para desenvolvimento
       }
     };
 
     fetchIp();
   }, []);
+
   useEffect(() => {
-    const socket = io(`ws://${ip}:3000`, {
+    if (!ip) return;
+
+    const isProd = process.env.NODE_ENV === "production";
+    const socketUrl = isProd ? `wss://${ip}` : `ws://${ip}:3000`;
+
+    console.log("Tentando conectar ao WebSocket:", socketUrl);
+
+    const socket = io(socketUrl, {
       path: "/api/socketio",
       transports: ["websocket"],
     });
@@ -97,12 +109,11 @@ export default function CadastrarProduto() {
       }
     });
 
-    // ✅ Retorna uma função de cleanup para fechar a conexão ao desmontar o componente
     return () => {
       console.log("🔌 Desconectando do WebSocket...");
       socket.disconnect();
     };
-  }, [form]);
+  }, [ip, form]);
 
   const handleTipoProdutoChange = (value: string) => {
     setTipoProduto(value);
@@ -376,7 +387,7 @@ export default function CadastrarProduto() {
         footer={null}
       >
         <div style={{ textAlign: "center" }}>
-          <QRCode value={serverUrl} size={200} />
+          <QRCode value={serverUrl.replace(/^http/, "https")} size={200} />
           <p style={{ marginTop: 10 }}>URL: {serverUrl}</p>
         </div>
       </Modal>
