@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
 
 const isProd = process.env.NODE_ENV === "production";
-const baseUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3000";
+const baseUrl = process.env.NEXT_PUBLIC_SOCKET_HOST || "http://localhost:3000";
 
 export function useSocket() {
   const [socket, setSocket] = useState<Socket | null>(null);

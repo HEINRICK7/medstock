@@ -1,43 +1,45 @@
-import { useEffect, useState } from "react";
-import { io, Socket } from "socket.io-client";
+import { Server as HttpServer } from "http";
+import { Server as SocketIOServer } from "socket.io";
+import type { NextApiRequest, NextApiResponse } from "next";
 
-const isProd = process.env.NODE_ENV === "production";
-const baseUrl = isProd
-  ? process.env.NEXT_PUBLIC_SOCKET_URL?.replace("http://", "wss://").replace(
-      "https://",
-      "wss://"
-    )
-  : "ws://localhost:3000";
+// Definição da tipagem correta para res.socket.server
+interface CustomSocketServer extends HttpServer {
+  io?: SocketIOServer;
+}
 
-export function useSocket() {
-  const [socket, setSocket] = useState<Socket | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
+type NextApiResponseWithSocket = NextApiResponse & {
+  socket: {
+    server: CustomSocketServer;
+  };
+};
 
-  useEffect(() => {
-    if (socket) return;
+export default function handler(req: NextApiRequest, res: NextApiResponseWithSocket) {
+  if (!res.socket.server.io) {
+    console.log("🚀 Iniciando servidor WebSocket...");
 
-    const socketInstance = io(baseUrl, {
+    const io = new SocketIOServer(res.socket.server as HttpServer, {
       path: "/api/socketio",
-      transports: ["websocket"],
+      cors: {
+        origin: "*",
+        methods: ["GET", "POST"],
+      },
     });
 
-    socketInstance.on("connect", () => {
-      console.log("✅ Conectado ao WebSocket!");
-      setIsConnected(true);
+    io.on("connection", (socket) => {
+      console.log("✅ Novo cliente conectado:", socket.id);
+
+      socket.on("disconnect", () => {
+        console.log("❌ Cliente desconectado:", socket.id);
+      });
+
+      socket.on("mensagem", (msg) => {
+        console.log("📩 Mensagem recebida:", msg);
+        io.emit("mensagem", msg);
+      });
     });
 
-    socketInstance.on("disconnect", () => {
-      console.log("❌ Desconectado do WebSocket.");
-      setIsConnected(false);
-    });
+    res.socket.server.io = io;
+  }
 
-    setSocket(socketInstance);
-
-    return () => {
-      console.log("🔌 Desconectando do WebSocket...");
-      socketInstance.disconnect();
-    };
-  }, []);
-
-  return { socket, isConnected };
+  res.end();
 }

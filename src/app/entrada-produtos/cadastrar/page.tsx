@@ -72,7 +72,7 @@ export default function CadastrarProduto() {
         const data = await response.json();
 
         const isProd = process.env.NODE_ENV === "production";
-        const protocol = isProd ? "wss" : "ws"; // 🔹 Define automaticamente WS ou WSS
+        const protocol = isProd ? "http" : "http"; // 🔹 Define automaticamente WS ou WSS
         const port = isProd ? "" : ":3000"; // 🔹 Remove porta em produção
 
         setIp(data.ip);
@@ -85,12 +85,12 @@ export default function CadastrarProduto() {
 
     fetchIp();
   }, []);
-
+  console.log("AKKKK", serverUrl);
   useEffect(() => {
     if (!ip) return;
 
     const isProd = process.env.NODE_ENV === "production";
-    const socketUrl = isProd ? `wss://${ip}` : `ws://${ip}:3000`;
+    const socketUrl = isProd ? `http://${ip}` : `http://${ip}:3000`;
 
     console.log("Tentando conectar ao WebSocket:", socketUrl);
 
@@ -389,7 +389,7 @@ export default function CadastrarProduto() {
         footer={null}
       >
         <div style={{ textAlign: "center" }}>
-          <QRCode value={serverUrl.replace(/^http/, "https")} size={200} />
+          <QRCode value={serverUrl} size={200} />
           <p style={{ marginTop: 10 }}>URL: {serverUrl}</p>
         </div>
       </Modal>
