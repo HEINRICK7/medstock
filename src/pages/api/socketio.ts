@@ -1,41 +1,44 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { Server as NetServer } from "http";
-import { NextApiRequest } from "next";
-import { Server as SocketIOServer } from "socket.io";
+import { useEffect, useState } from "react";
+import { io, Socket } from "socket.io-client";
 
-export const config = {
-  api: {
-    bodyParser: false, // Desativar o bodyParser para WebSockets
-  },
-};
-export default function handler(req: NextApiRequest, res: any) {
-  if (!res.socket.server.io) {
-    console.log("🔌 Inicializando WebSocket...");
+const isProd = process.env.NODE_ENV === "production";
+const baseUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3000";
 
-    const httpServer: NetServer = res.socket.server as any;
-    const io = new SocketIOServer(httpServer, {
+export function useSocket() {
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+
+  useEffect(() => {
+    if (socket) return; // Evita múltiplas conexões
+
+    const socketUrl = isProd
+      ? baseUrl.replace("http://", "wss://").replace("https://", "wss://")
+      : baseUrl.replace("http://", "ws://");
+
+    console.log(`🔌 Conectando ao WebSocket: ${socketUrl}`);
+
+    const socketInstance = io(socketUrl, {
       path: "/api/socketio",
-      cors: {
-        origin: "*", // Permitir conexões externas (apenas para dev)
-      },
-      transports: ["websocket"], // 🔥 Força WebSocket e evita polling
+      transports: ["websocket"],
     });
 
-    io.on("connection", (socket) => {
-      console.log("🚀 Cliente conectado:", socket.id);
-
-      socket.on("mensagem", (data) => {
-        console.log("📩 Mensagem recebida:", data);
-        io.emit("mensagem", data);
-      });
-
-      socket.on("disconnect", () => {
-        console.log("❌ Cliente desconectado:", socket.id);
-      });
+    socketInstance.on("connect", () => {
+      console.log("✅ Conectado ao WebSocket!");
+      setIsConnected(true);
     });
 
-    res.socket.server.io = io;
-  }
+    socketInstance.on("disconnect", () => {
+      console.log("❌ Desconectado do WebSocket.");
+      setIsConnected(false);
+    });
 
-  res.end();
+    setSocket(socketInstance);
+
+    return () => {
+      console.log("🔌 Desconectando do WebSocket...");
+      socketInstance.disconnect();
+    };
+  }, []);
+
+  return { socket, isConnected };
 }
