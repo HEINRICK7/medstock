@@ -71,20 +71,23 @@ export default function CadastrarProduto() {
         const response = await fetch("/api/ip");
         const data = await response.json();
 
+        if (!data.ip) throw new Error("IP não encontrado!");
+
         const isProd = process.env.NODE_ENV === "production";
-        const protocol = isProd ? "https" : "http"; // 🔹 Define automaticamente WS ou WSS
-        const port = isProd ? "" : ":3000"; // 🔹 Remove porta em produção
+        const protocol = isProd ? "https" : "http"; // 🔹 Define HTTPS em produção
+        const port = isProd ? "" : ":3000"; // 🔹 Remove a porta na Vercel
 
         setIp(data.ip);
         setServerUrl(`${protocol}://${data.ip}${port}`);
       } catch (error) {
         console.error("Erro ao buscar IP:", error);
-        setServerUrl("ws://localhost:3000"); // Fallback para localhost
+        setServerUrl("https://medstock-lilac.vercel.app"); // 🚨 Fallback fixo para produção
       }
     };
 
     fetchIp();
   }, []);
+
   console.log("AKKKK", serverUrl);
   useEffect(() => {
     if (!ip) return;
