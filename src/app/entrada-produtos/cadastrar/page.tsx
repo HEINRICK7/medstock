@@ -72,7 +72,7 @@ export default function CadastrarProduto() {
         const data = await response.json();
 
         const isProd = process.env.NODE_ENV === "production";
-        const protocol = isProd ? "http" : "http"; // 🔹 Define automaticamente WS ou WSS
+        const protocol = isProd ? "https" : "http"; // 🔹 Define automaticamente WS ou WSS
         const port = isProd ? "" : ":3000"; // 🔹 Remove porta em produção
 
         setIp(data.ip);
