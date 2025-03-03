@@ -22,12 +22,11 @@ export default function handler(
 
     const io = new SocketIOServer(res.socket.server as HttpServer, {
       path: "/api/socketio",
-      addTrailingSlash: false,
       cors: {
         origin: "*", // Permite conexões de qualquer origem
         methods: ["GET", "POST"],
       },
-      transports: ["polling", "websocket"], // ✅ Agora aceita polling
+      transports: ["polling"], // 🚨 FORÇA "polling" para funcionar na Vercel
     });
 
     io.on("connection", (socket) => {

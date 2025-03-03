@@ -3,7 +3,7 @@ import { io, Socket } from "socket.io-client";
 
 const isProd = process.env.NODE_ENV === "production";
 const baseUrl =
-  process.env.NEXT_PUBLIC_SOCKET_HOST || "http://192.168.1.18:3000";
+  process.env.NEXT_PUBLIC_SOCKET_HOST || "https://medstock-lilac.vercel.app"; // 🔹 URL na Vercel
 
 export function useSocket() {
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -13,14 +13,14 @@ export function useSocket() {
     if (socket) return; // Evita múltiplas conexões
 
     const socketUrl = isProd
-      ? baseUrl.replace("http://", "wss://").replace("https://", "wss://")
+      ? baseUrl.replace("http://", "https://")
       : baseUrl.replace("http://", "ws://");
 
     console.log(`🔌 Tentando conectar ao WebSocket: ${socketUrl}`);
 
     const socketInstance = io(socketUrl, {
       path: "/api/socketio",
-      transports: ["polling", "websocket"], // ✅ Agora aceita polling também
+      transports: ["polling"], // 🚨 Agora apenas polling
       reconnectionAttempts: 5, // Tenta reconectar automaticamente
       secure: isProd, // Usa HTTPS em produção
     });
