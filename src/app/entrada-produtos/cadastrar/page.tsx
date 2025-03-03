@@ -72,7 +72,7 @@ export default function CadastrarProduto() {
         const data = await response.json();
 
         const isProd = process.env.NODE_ENV === "production";
-        const protocol = isProd ? "https://" : "http://";
+        const protocol = isProd ? "http://" : "http://";
         setIp(data.ip);
         setServerUrl(`${protocol}${data.ip}:3000`);
       } catch (error) {
