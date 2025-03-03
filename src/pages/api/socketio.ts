@@ -14,7 +14,7 @@ export function useSocket() {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    if (socket) return; // Evita múltiplas conexões
+    if (socket) return;
 
     const socketInstance = io(baseUrl, {
       path: "/api/socketio",

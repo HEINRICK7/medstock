@@ -15,7 +15,7 @@ function getLocalIp(): string {
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const isProd = process.env.NODE_ENV === "production";
-  const ip = isProd ? process.env.NEXT_PUBLIC_SOCKET_HOST : getLocalIp();
+  const ip = isProd ? process.env.NEXT_PUBLIC_SOCKET_URL : getLocalIp();
 
   res.json({ ip });
 }
