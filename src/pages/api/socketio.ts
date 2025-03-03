@@ -2,7 +2,7 @@ import { Server as HttpServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import type { NextApiRequest, NextApiResponse } from "next";
 
-// Definição da tipagem correta para res.socket.server
+// Definição da tipagem correta
 interface CustomSocketServer extends HttpServer {
   io?: SocketIOServer;
 }
@@ -13,16 +13,21 @@ type NextApiResponseWithSocket = NextApiResponse & {
   };
 };
 
-export default function handler(req: NextApiRequest, res: NextApiResponseWithSocket) {
+export default function handler(
+  req: NextApiRequest,
+  res: NextApiResponseWithSocket
+) {
   if (!res.socket.server.io) {
     console.log("🚀 Iniciando servidor WebSocket...");
 
     const io = new SocketIOServer(res.socket.server as HttpServer, {
       path: "/api/socketio",
+      addTrailingSlash: false,
       cors: {
-        origin: "*",
+        origin: "*", // Permite conexões de qualquer origem
         methods: ["GET", "POST"],
       },
+      transports: ["polling", "websocket"], // ✅ Agora aceita polling
     });
 
     io.on("connection", (socket) => {
@@ -39,6 +44,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponseWithSoc
     });
 
     res.socket.server.io = io;
+  } else {
+    console.log("⚡ Servidor WebSocket já estava rodando.");
   }
 
   res.end();

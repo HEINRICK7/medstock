@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
 
 const isProd = process.env.NODE_ENV === "production";
-const baseUrl = process.env.NEXT_PUBLIC_SOCKET_HOST || "http://localhost:3000";
+const baseUrl =
+  process.env.NEXT_PUBLIC_SOCKET_HOST || "http://192.168.1.18:3000";
 
 export function useSocket() {
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -11,17 +12,17 @@ export function useSocket() {
   useEffect(() => {
     if (socket) return; // Evita múltiplas conexões
 
-    // 🔹 Garante que a URL esteja correta, substituindo corretamente para WS ou WSS
-    let socketUrl = baseUrl.replace(/^http/, "ws");
-    if (isProd) {
-      socketUrl = baseUrl.replace(/^https/, "wss");
-    }
+    const socketUrl = isProd
+      ? baseUrl.replace("http://", "wss://").replace("https://", "wss://")
+      : baseUrl.replace("http://", "ws://");
 
-    console.log(`🔌 Conectando ao WebSocket: ${socketUrl}`);
+    console.log(`🔌 Tentando conectar ao WebSocket: ${socketUrl}`);
 
     const socketInstance = io(socketUrl, {
       path: "/api/socketio",
-      transports: ["websocket"],
+      transports: ["polling", "websocket"], // ✅ Agora aceita polling também
+      reconnectionAttempts: 5, // Tenta reconectar automaticamente
+      secure: isProd, // Usa HTTPS em produção
     });
 
     socketInstance.on("connect", () => {

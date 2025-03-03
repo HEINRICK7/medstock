@@ -90,7 +90,7 @@ export default function CadastrarProduto() {
     if (!ip) return;
 
     const isProd = process.env.NODE_ENV === "production";
-    const socketUrl = isProd ? `http://${ip}` : `http://${ip}:3000`;
+    const socketUrl = isProd ? `https://${ip}` : `http://${ip}:3000`;
 
     console.log("Tentando conectar ao WebSocket:", socketUrl);
 
