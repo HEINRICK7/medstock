@@ -3,7 +3,7 @@ import { io, Socket } from "socket.io-client";
 
 const isProd = process.env.NODE_ENV === "production";
 const baseUrl =
-  process.env.NEXT_PUBLIC_SOCKET_HOST || "https://medstock-lilac.vercel.app"; // 🔹 URL na Vercel
+  process.env.NEXT_PUBLIC_SOCKET_HOST || "medstock-lilac.vercel.app";
 
 export function useSocket() {
   const [socket, setSocket] = useState<Socket | null>(null);
