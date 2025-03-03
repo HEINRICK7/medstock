@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Form,
   Input,
@@ -24,52 +24,81 @@ import { supabase } from "@/lib/supabase";
 const { Title } = Typography;
 const { Option } = Select;
 
+type Produto = {
+  codigo_barras: string;
+  nome_produto: string;
+  tipo_produto: string;
+  categoria: string;
+  unidade_medida: string;
+  fabricante?: string;
+  fornecedor?: string;
+  numero_lote?: string | null;
+  descricao?: string;
+  data_fabricacao?: string | null;
+  data_validade?: string | null;
+  quantidade_recebida: number;
+  numero_nota_fiscal?: string;
+  quantidade_minima_estoque?: number;
+  data_entrada: string;
+  responsavel: string;
+};
+
 export default function EditarProduto() {
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
   const router = useRouter();
-  const { id } = useParams();
+  const params = useParams();
   const [tipoProduto, setTipoProduto] = useState<string | null>(null);
   const [isPerecivel, setIsPerecivel] = useState<boolean>(false);
   const [api, contextHolder] = message.useMessage();
+  const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
+
+  // 🔹 Buscar os dados do produto
+  const fetchProduto = useCallback(
+    async (produtoId: string) => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("produtos")
+        .select("*")
+        .eq("id", produtoId)
+        .single();
+
+      if (error) {
+        api.error("Erro ao carregar produto.");
+        router.push("/entrada-produtos/listar");
+      } else {
+        form.setFieldsValue({
+          ...data,
+          data_fabricacao: data.data_fabricacao
+            ? dayjs(data.data_fabricacao)
+            : null,
+          data_validade: data.data_validade ? dayjs(data.data_validade) : null,
+          data_entrada: data.data_entrada ? dayjs(data.data_entrada) : null,
+        });
+        setTipoProduto(data.tipo_produto);
+        setIsPerecivel(
+          data.tipo_produto === "geral" && data.data_validade !== null
+        );
+      }
+      setLoading(false);
+    },
+    [api, router, form]
+  ); // 🔹 Dependências garantem que a função não seja recriada
 
   useEffect(() => {
     if (id) {
       fetchProduto(id);
     }
-  }, [id]);
+  }, [fetchProduto, id]); // ✅ `fetchProduto` agora é estável
 
-  // 🔹 Buscar os dados do produto
-  const fetchProduto = async (id: string) => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("produtos")
-      .select("*")
-      .eq("id", id)
-      .single();
-
-    if (error) {
-      api.error("Erro ao carregar produto.");
-      router.push("/entrada-produtos/listar");
-    } else {
-      form.setFieldsValue({
-        ...data,
-        data_fabricacao: data.data_fabricacao
-          ? dayjs(data.data_fabricacao)
-          : null,
-        data_validade: data.data_validade ? dayjs(data.data_validade) : null,
-        data_entrada: data.data_entrada ? dayjs(data.data_entrada) : null,
-      });
-      setTipoProduto(data.tipo_produto);
-      setIsPerecivel(
-        data.tipo_produto === "geral" && data.data_validade !== null
-      );
+  useEffect(() => {
+    if (id) {
+      fetchProduto(id);
     }
-    setLoading(false);
-  };
+  }, [fetchProduto, id]);
 
   // 🔹 Atualizar produto no Supabase
-  const handleUpdate = async (values: any) => {
+  const handleUpdate = async (values: Produto) => {
     setLoading(true);
 
     const produtoAtualizado = {
@@ -121,7 +150,7 @@ export default function EditarProduto() {
               Voltar
             </Button>
           </div>
-          <Divider/>
+          <Divider />
           <Form form={form} layout="vertical" onFinish={handleUpdate}>
             <div style={{ display: "flex", gap: 16 }}>
               <Form.Item

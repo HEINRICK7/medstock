@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -10,11 +9,23 @@ import dayjs from "dayjs";
 
 const { Title } = Typography;
 
+interface Saida {
+  id: string;
+  produto_id: string;
+  quantidade: number;
+  destino: string;
+  data_saida: string;
+  responsavel: string;
+  numero_documento: string;
+  observacoes?: string;
+}
+
 export default function VisualizarSaida() {
-  const { id } = useParams();
+  const params = useParams();
   const router = useRouter();
-  const [saida, setSaida] = useState<any>(null);
+  const [saida, setSaida] = useState<Saida | null>(null);
   const [loading, setLoading] = useState(true);
+  const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
 
   useEffect(() => {
     async function fetchSaida() {

@@ -1,8 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect } from "react";
-import { Layout, Menu, Image } from "antd";
+import { Layout, Menu, Image, MenuProps } from "antd";
 import {
   LayoutDashboard,
   PackagePlus,
@@ -21,18 +20,20 @@ const Sidebar = () => {
   const router = useRouter(); // Roteador cliente
   const pathname = usePathname(); // Obtém o caminho atual
   const [collapsed, setCollapsed] = useState(false);
-  const [activeKey, setActiveKey] = useState("dashboard");
+  const [activeKey, setActiveKey] = useState<string | null>("dashboard");
   const [openKeys, setOpenKeys] = useState<string[]>([]); // Controla os menus abertos
   const screens = useBreakpoint();
-  useEffect(() => {
-    setActiveKey(pathname); // Define a chave ativa com base no caminho
-  }, [pathname]);
 
+  useEffect(() => {
+    if (pathname) {
+      setActiveKey(pathname);
+    }
+  }, [pathname]);
   // 🔹 Fecha os outros menus ao abrir um novo
   const handleOpenChange = (keys: string[]) => {
     setOpenKeys(keys.length > 0 ? [keys[keys.length - 1]] : []);
   };
-  const menuItems = [
+  const menuItems: MenuProps["items"] = [
     {
       key: "dashboard",
       icon: <LayoutDashboard size={20} />,
@@ -40,6 +41,7 @@ const Sidebar = () => {
       onClick: () => router.push("/dashboard"),
     },
     {
+      key: "produtos",
       label: "Produtos",
     },
     {
@@ -125,10 +127,10 @@ const Sidebar = () => {
 
             <Menu
               mode="inline"
-              selectedKeys={[activeKey]} // Chave ativa dinamicamente
+              selectedKeys={activeKey ? [activeKey] : []}
               openKeys={openKeys} // Controlando as chaves abertas
               onOpenChange={handleOpenChange} // Controlando abertura do menu
-              items={menuItems as any} // Passa os itens do menu para o Ant Design
+              items={menuItems} // Passa os itens do menu para o Ant Design
             />
           </div>
         </Sider>
@@ -158,10 +160,10 @@ const Sidebar = () => {
 
             <Menu
               mode="inline"
-              selectedKeys={[activeKey]} // Chave ativa dinamicamente
+              selectedKeys={activeKey ? [activeKey] : []}
               openKeys={openKeys} // Controlando as chaves abertas
               onOpenChange={handleOpenChange} // Controlando abertura do menu
-              items={menuItems as any} // Passa os itens do menu para o Ant Design
+              items={menuItems} // Passa os itens do menu para o Ant Design
             />
           </div>
         </Sider>

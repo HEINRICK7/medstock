@@ -1,6 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-
 import { useEffect, useState } from "react";
 import {
   Form,
@@ -20,10 +18,34 @@ import { supabase } from "@/lib/supabase";
 const { Title } = Typography;
 const { Option } = Select;
 
+interface Produto {
+  id: string;
+  nome_produto: string;
+  codigo_barras: string;
+  quantidade_recebida: number;
+  quantidade_minima_estoque: number;
+}
+
+interface SaidaProdutoForm {
+  produto_id: string;
+  quantidade: number;
+  destino: string;
+  data_saida: string;
+  responsavel: string;
+  numero_documento: string;
+  observacoes?: string;
+}
+interface ProdutoListagem {
+  id: string;
+  nome_produto: string;
+  quantidade_recebida: number;
+  quantidade_minima_estoque: number;
+  codigo_barras: string;
+}
 export default function SaidaProduto() {
-  const [loading, setLoading] = useState(false);
-  const [produtos, setProdutos] = useState<any[]>([]);
-  const [form] = Form.useForm();
+  const [loading, setLoading] = useState<boolean>(false);
+  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [form] = Form.useForm<SaidaProdutoForm>();
   const [api, contextHolder] = message.useMessage();
 
   useEffect(() => {
@@ -31,12 +53,14 @@ export default function SaidaProduto() {
       const { data, error } = await supabase
         .from("produtos")
         .select("id, nome_produto, quantidade_recebida");
+
       if (error) {
         api.error("Erro ao buscar produtos: " + error.message);
-      } else {
-        setProdutos(data);
+      } else if (data) {
+        setProdutos(data as ProdutoListagem[]);
       }
     }
+
     fetchProdutos();
 
     // Gerar número do documento automaticamente
@@ -47,7 +71,7 @@ export default function SaidaProduto() {
     });
   }, [form, api]);
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: SaidaProdutoForm) => {
     setLoading(true);
 
     const produtoSelecionado = produtos.find((p) => p.id === values.produto_id);
@@ -124,16 +148,14 @@ export default function SaidaProduto() {
             <Form.Item
               label="Produtos"
               name="produto_id"
-              rules={[{ required: true }]}
+              rules={[{ required: true, message: "Selecione um produto!" }]}
             >
               <Select
                 showSearch
                 placeholder="Selecione um produto"
-                filterOption={(input: any, option: any) =>
-                  option?.label
-                    ?.toString()
-                    .toLowerCase()
-                    .includes(input.toLowerCase())
+                filterOption={(input, option) =>
+                  option?.label.toLowerCase().includes(input.toLowerCase()) ??
+                  false
                 }
                 options={produtos.map((produto) => ({
                   label: `${produto.nome_produto} (Estoque: ${produto.quantidade_recebida})`,
@@ -145,7 +167,7 @@ export default function SaidaProduto() {
             <Form.Item
               label="Quantidade"
               name="quantidade"
-              rules={[{ required: true }]}
+              rules={[{ required: true, message: "Informe a quantidade!" }]}
             >
               <InputNumber min={1} style={{ width: "100%" }} />
             </Form.Item>
@@ -153,7 +175,7 @@ export default function SaidaProduto() {
             <Form.Item
               label="Destino"
               name="destino"
-              rules={[{ required: true }]}
+              rules={[{ required: true, message: "Selecione um destino!" }]}
             >
               <Select placeholder="Selecione um destino">
                 <Option value="Hospital">Hospital</Option>
@@ -165,7 +187,7 @@ export default function SaidaProduto() {
             <Form.Item
               label="Data de Saída"
               name="data_saida"
-              rules={[{ required: true }]}
+              rules={[{ required: true, message: "Informe a data de saída!" }]}
             >
               <DatePicker format="DD/MM/YYYY" style={{ width: "100%" }} />
             </Form.Item>
@@ -173,7 +195,7 @@ export default function SaidaProduto() {
             <Form.Item
               label="Responsável"
               name="responsavel"
-              rules={[{ required: true }]}
+              rules={[{ required: true, message: "Informe o responsável!" }]}
             >
               <Input placeholder="Digite o nome do responsável" />
             </Form.Item>

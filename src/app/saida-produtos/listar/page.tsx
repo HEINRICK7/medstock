@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -25,10 +24,26 @@ const { Title } = Typography;
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 
+interface Produto {
+  id: string;
+  nome_produto: string;
+}
+
+interface Saida {
+  id: string;
+  produto_id: string;
+  quantidade: number;
+  destino: string;
+  data_saida: string;
+  responsavel: string;
+  numero_documento: string;
+  observacoes?: string;
+}
+
 export default function ListarSaidas() {
   const router = useRouter();
-  const [saidas, setSaidas] = useState<any[]>([]);
-  const [produtos, setProdutos] = useState<any[]>([]);
+  const [saidas, setSaidas] = useState<Saida[]>([]);
+  const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
 
   // 🔹 Estados para os filtros

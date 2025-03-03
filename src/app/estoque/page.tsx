@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useState } from "react";
+import { JSX, useEffect, useState } from "react";
 import {
   buscarProdutosEstoqueBaixo,
   buscarProdutosProximosVencimento,
@@ -26,9 +25,29 @@ const { RangePicker } = DatePicker;
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+interface Produto {
+  id: string;
+  nome_produto: string;
+  codigo_barras: string;
+  tipo_produto: string;
+  categoria: string;
+  unidade_medida: string;
+  fabricante?: string;
+  fornecedor?: string;
+  numero_lote?: string;
+  descricao?: string;
+  data_fabricacao?: string;
+  data_validade?: string;
+  quantidade_recebida: number;
+  numero_nota_fiscal?: string;
+  quantidade_minima_estoque: number;
+  data_entrada: string;
+  responsavel: string;
+}
+
 export default function Estoque() {
-  const [produtos, setProdutos] = useState<any[]>([]);
-  const [produtosVencendo, setProdutosVencendo] = useState<any[]>([]);
+  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [produtosVencendo, setProdutosVencendo] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
 
   // 🔹 Estados para os filtros
@@ -73,10 +92,10 @@ export default function Estoque() {
         produto.data_validade
           ? dayjs(produto.data_validade).format("DD/MM/YYYY")
           : "-",
-        getStatus(
+        getStatusTexto(
           produto.quantidade_recebida,
           produto.quantidade_minima_estoque,
-          produto.data_validade
+          produto.data_validade as string
         ),
       ]),
       theme: "grid",
@@ -96,11 +115,26 @@ export default function Estoque() {
     fetchProdutos();
   }, []);
 
+  const getStatusTexto = (quantidade: number, minimo: number, validade?: string): string => {
+    const hoje = dayjs();
+    const diasParaVencer = validade ? dayjs(validade).diff(hoje, "day") : null;
+    const status: string[] = [];
+  
+    if (quantidade === 0) status.push("Em Falta");
+    if (quantidade > 0 && quantidade <= minimo) status.push("Estoque Baixo");
+    if (diasParaVencer !== null) {
+      if (diasParaVencer < 0) status.push("Vencido");
+      else if (diasParaVencer <= 30) status.push("Próx. do Vencimento");
+    }
+  
+    return status.length > 0 ? status.join(", ") : "Ok";
+  };
+  
   // 🔹 Função para definir status
   const getStatus = (quantidade: number, minimo: number, validade: string) => {
     const hoje = dayjs();
     const diasParaVencer = validade ? dayjs(validade).diff(hoje, "day") : null;
-    const statusTags = [];
+    const statusTags: JSX.Element[] = [];
 
     if (quantidade === 0) {
       statusTags.push(
@@ -161,8 +195,17 @@ export default function Estoque() {
           produto.quantidade_recebida,
           produto.quantidade_minima_estoque,
           produto.data_validade
+            ? dayjs(produto.data_validade).format("DD/MM/YYYY")
+            : "-"
         );
-        const statusText = [status].map((tag: any) => tag.props.children[1]); // Pegando os textos dos status
+        const statusText = (Array.isArray(status) ? status : [status])
+          .map((tag) => {
+            if (typeof tag === "object" && "props" in tag) {
+              return tag.props.children[1] as string;
+            }
+            return "";
+          })
+          .filter((text) => text);
 
         if (!statusText.includes(statusFiltro)) return false;
       }
@@ -293,6 +336,8 @@ export default function Estoque() {
                     record.quantidade_recebida,
                     record.quantidade_minima_estoque,
                     record.data_validade
+                      ? dayjs(record.data_validade).format("DD/MM/YYYY")
+                      : "-"
                   ),
                 responsive: ["xs", "sm", "md", "lg", "xl"],
               },

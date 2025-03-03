@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -11,12 +10,34 @@ import autoTable from "jspdf-autotable";
 
 const { Title } = Typography;
 
+interface jsPDFWithAutoTable extends jsPDF {
+  lastAutoTable?: { finalY: number };
+}
+interface Produto {
+  id: string;
+  nome_produto: string;
+  codigo_barras: string;
+  tipo_produto: string;
+  categoria: string;
+  unidade_medida: string;
+  fabricante?: string;
+  fornecedor?: string;
+  numero_lote?: string;
+  descricao?: string;
+  data_fabricacao?: string;
+  data_validade?: string;
+  quantidade_recebida: number;
+  numero_nota_fiscal?: string;
+  quantidade_minima_estoque: number;
+  data_entrada: string;
+  responsavel: string;
+}
 export default function VisualizarProduto() {
   const router = useRouter();
-  const { id } = useParams();
-  const [produto, setProduto] = useState<any>(null);
+  const params = useParams();
+  const [produto, setProduto] = useState<Produto | null>(null);
   const [loading, setLoading] = useState(true);
-
+  const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
   useEffect(() => {
     async function fetchProduto() {
       if (!id) return;
@@ -38,9 +59,8 @@ export default function VisualizarProduto() {
   }, [id]);
 
   const gerarPDF = () => {
+    const doc: jsPDFWithAutoTable = new jsPDF();
     if (!produto) return;
-
-    const doc = new jsPDF();
 
     // 🔹 Cabeçalho do relatório
     doc.setFont("helvetica", "bold");
@@ -74,9 +94,11 @@ export default function VisualizarProduto() {
 
     // 🔹 Seção de Origem
     doc.setFontSize(14);
-    doc.text("Informações de Origem", 14, doc.lastAutoTable.finalY + 10);
+    const lastY = doc.lastAutoTable?.finalY ?? 50;
+    doc.text("Informações de Origem", 14, lastY + 10);
+
     autoTable(doc, {
-      startY: doc.lastAutoTable.finalY + 15,
+      startY: lastY + 15,
       head: [["Campo", "Valor"]],
       body: [
         ["Fabricante", produto.fabricante || "N/A"],
@@ -89,9 +111,9 @@ export default function VisualizarProduto() {
 
     // 🔹 Seção de Controle de Entrada
     doc.setFontSize(14);
-    doc.text("Controle de Entrada", 14, doc.lastAutoTable.finalY + 10);
+    doc.text("Controle de Entrada", 14, lastY + 10);
     autoTable(doc, {
-      startY: doc.lastAutoTable.finalY + 15,
+      startY: lastY + 15,
       head: [["Campo", "Valor"]],
       body: [
         ["Data de Fabricação", produto.data_fabricacao || "N/A"],
@@ -150,11 +172,11 @@ export default function VisualizarProduto() {
           </thead>
           <tbody>
             {[
-              ["Código de Barras", produto.codigo_barras || "N/A"],
-              ["Nome", produto.nome_produto],
-              ["Tipo", produto.tipo_produto],
-              ["Categoria", produto.categoria],
-              ["Descrição", produto.descricao || "N/A"],
+              ["Código de Barras", produto?.codigo_barras || "N/A"],
+              ["Nome", produto?.nome_produto],
+              ["Tipo", produto?.tipo_produto],
+              ["Categoria", produto?.categoria],
+              ["Descrição", produto?.descricao || "N/A"],
             ].map(([campo, valor], index) => (
               <tr key={index}>
                 <td style={cellStyle}>
@@ -178,9 +200,9 @@ export default function VisualizarProduto() {
           </thead>
           <tbody>
             {[
-              ["Fabricante", produto.fabricante || "N/A"],
-              ["Fornecedor", produto.fornecedor || "N/A"],
-              ["Número do Lote", produto.numero_lote || "N/A"],
+              ["Fabricante", produto?.fabricante || "N/A"],
+              ["Fornecedor", produto?.fornecedor || "N/A"],
+              ["Número do Lote", produto?.numero_lote || "N/A"],
             ].map(([campo, valor], index) => (
               <tr key={index}>
                 <td style={cellStyle}>
@@ -204,12 +226,12 @@ export default function VisualizarProduto() {
           </thead>
           <tbody>
             {[
-              ["Data de Fabricação", produto.data_fabricacao || "N/A"],
-              ["Data de Validade", produto.data_validade || "N/A"],
-              ["Data de Entrada", produto.data_entrada],
-              ["Quantidade Recebida", produto.quantidade_recebida],
-              ["Número da Nota Fiscal", produto.numero_nota_fiscal || "N/A"],
-              ["Responsável", produto.responsavel],
+              ["Data de Fabricação", produto?.data_fabricacao || "N/A"],
+              ["Data de Validade", produto?.data_validade || "N/A"],
+              ["Data de Entrada", produto?.data_entrada],
+              ["Quantidade Recebida", produto?.quantidade_recebida],
+              ["Número da Nota Fiscal", produto?.numero_nota_fiscal || "N/A"],
+              ["Responsável", produto?.responsavel],
             ].map(([campo, valor], index) => (
               <tr key={index}>
                 <td style={cellStyle}>

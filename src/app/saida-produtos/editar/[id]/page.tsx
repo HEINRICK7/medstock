@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -22,12 +21,34 @@ import dayjs from "dayjs";
 const { Title } = Typography;
 const { Option } = Select;
 
+interface Produto {
+  id: string;
+  produto_id: string;
+  nome_produto: string;
+  codigo_barras: string;
+  tipo_produto?: string; // Agora é opcional
+  categoria: string;
+  unidade_medida?: string;
+  fabricante?: string;
+  fornecedor?: string;
+  numero_lote?: string;
+  descricao?: string;
+  data_fabricacao?: string;
+  data_validade?: string;
+  quantidade_recebida: number;
+  numero_nota_fiscal?: string;
+  quantidade_minima_estoque: number;
+  data_entrada?: string;
+  data_saida?: string;
+  responsavel?: string;
+}
 export default function EditarSaida() {
-  const { id } = useParams();
+  const params = useParams();
   const router = useRouter();
   const [form] = Form.useForm();
-  const [produtos, setProdutos] = useState<any[]>([]);
+  const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
+  const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
 
   useEffect(() => {
     async function fetchSaida() {
@@ -53,14 +74,14 @@ export default function EditarSaida() {
         .from("produtos")
         .select("id, nome_produto");
 
-      if (!error) setProdutos(produtosData || []);
+      if (!error) setProdutos(produtosData as Produto[]);
     }
 
     fetchSaida();
     fetchProdutos();
   }, [id]);
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: Produto) => {
     setLoading(true);
     const updatedSaida = {
       ...values,

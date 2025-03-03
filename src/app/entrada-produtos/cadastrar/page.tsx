@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -29,6 +28,25 @@ import io from "socket.io-client";
 const { Title } = Typography;
 const { Option } = Select;
 
+interface Produto {
+  codigo_barras: string;
+  nome_produto: string;
+  tipo_produto: string;
+  categoria: string;
+  unidade_medida: string;
+  fabricante?: string;
+  fornecedor?: string;
+  numero_lote?: string;
+  descricao?: string;
+  data_fabricacao?: string;
+  data_validade?: string;
+  quantidade_recebida: number;
+  numero_nota_fiscal?: string;
+  quantidade_minima_estoque: number;
+  data_entrada: string;
+  responsavel: string;
+}
+
 export default function CadastrarProduto() {
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
@@ -39,6 +57,7 @@ export default function CadastrarProduto() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [serverUrl, setServerUrl] = useState("");
   const [codigoBarras, setCodigoBarras] = useState("");
+  const [ip, setIp] = useState("");
 
   useEffect(() => {
     if (qrCodeInputRef.current) {
@@ -50,6 +69,7 @@ export default function CadastrarProduto() {
       try {
         const response = await fetch("/api/ip");
         const data = await response.json();
+        setIp(data.ip)
         setServerUrl(`http://${data.ip}:3000`);
       } catch (error) {
         console.error("Erro ao buscar IP:", error);
@@ -60,7 +80,7 @@ export default function CadastrarProduto() {
     fetchIp();
   }, []);
   useEffect(() => {
-    const socket = io("ws://192.168.1.18:3000", {
+    const socket = io(`ws://${ip}:3000`, {
       path: "/api/socketio",
       transports: ["websocket"],
     });
@@ -71,21 +91,25 @@ export default function CadastrarProduto() {
 
     socket.on("mensagem", (data) => {
       console.log("📩 Código recebido:", data);
-
       if (data.type === "scan") {
         setCodigoBarras(data.data);
         form.setFieldsValue({ codigo_barras: data.data });
       }
     });
 
-    return () => socket.disconnect();
+    // ✅ Retorna uma função de cleanup para fechar a conexão ao desmontar o componente
+    return () => {
+      console.log("🔌 Desconectando do WebSocket...");
+      socket.disconnect();
+    };
   }, [form]);
+
   const handleTipoProdutoChange = (value: string) => {
     setTipoProduto(value);
     setIsPerecivel(false);
   };
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: Produto) => {
     setLoading(true);
 
     const produto = {
@@ -162,7 +186,11 @@ export default function CadastrarProduto() {
                   name="codigo_barras"
                   rules={[{ required: true }]}
                 >
-                  <Input ref={qrCodeInputRef} value={codigoBarras} placeholder="Digite um código" />
+                  <Input
+                    ref={qrCodeInputRef}
+                    value={codigoBarras}
+                    placeholder="Digite um código"
+                  />
                 </Form.Item>
               </Col>
 

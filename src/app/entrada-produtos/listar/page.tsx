@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -23,8 +22,28 @@ import { useRouter } from "next/navigation";
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 
+interface Produto {
+  id: string;
+  nome_produto: string;
+  codigo_barras: string;
+  tipo_produto: string;
+  categoria: string;
+  unidade_medida: string;
+  fabricante?: string;
+  fornecedor?: string;
+  numero_lote?: string;
+  descricao?: string;
+  data_fabricacao?: string;
+  data_validade?: string;
+  quantidade_recebida: number;
+  numero_nota_fiscal?: string;
+  quantidade_minima_estoque: number;
+  data_entrada: string;
+  responsavel: string;
+}
+
 export default function ListarProdutos() {
-  const [produtos, setProdutos] = useState<any[]>([]);
+  const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     nome: "",
