@@ -72,12 +72,14 @@ export default function CadastrarProduto() {
         const data = await response.json();
 
         const isProd = process.env.NODE_ENV === "production";
-        const protocol = isProd ? "http://" : "http://";
+        const protocol = isProd ? "wss" : "ws"; // 🔹 Define automaticamente WS ou WSS
+        const port = isProd ? "" : ":3000"; // 🔹 Remove porta em produção
+
         setIp(data.ip);
-        setServerUrl(`${protocol}${data.ip}:3000`);
+        setServerUrl(`${protocol}://${data.ip}${port}`);
       } catch (error) {
         console.error("Erro ao buscar IP:", error);
-        setServerUrl("http://localhost:3000"); // Fallback para desenvolvimento
+        setServerUrl("ws://localhost:3000"); // Fallback para localhost
       }
     };
 
