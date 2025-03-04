@@ -15,15 +15,11 @@ import {
   App,
   Row,
   Col,
-  QRCode,
-  Modal,
   Divider,
 } from "antd";
 import dayjs from "dayjs";
 import { supabase } from "@/lib/supabase";
 import type { InputRef } from "antd";
-import { ScanLine } from "lucide-react";
-import io from "socket.io-client";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -54,10 +50,7 @@ export default function CadastrarProduto() {
   const [tipoProduto, setTipoProduto] = useState<string | null>(null);
   const [isPerecivel, setIsPerecivel] = useState<boolean>(false);
   const [api, contextHolder] = message.useMessage();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [serverUrl, setServerUrl] = useState("");
   const [codigoBarras, setCodigoBarras] = useState("");
-  const [ip, setIp] = useState("");
 
   useEffect(() => {
     if (qrCodeInputRef.current) {
@@ -66,59 +59,22 @@ export default function CadastrarProduto() {
   }, []);
 
   useEffect(() => {
-    const fetchIp = async () => {
-      try {
-        const response = await fetch("/api/ip");
-        const data = await response.json();
-
-        if (!data.ip) throw new Error("IP não encontrado!");
-
-        const isProd = process.env.NODE_ENV === "production";
-        const protocol = isProd ? "https" : "http"; // 🔹 Define HTTPS em produção
-        const port = isProd ? "" : ":3000"; // 🔹 Remove a porta na Vercel
-
-        setIp(data.ip);
-        setServerUrl(`${protocol}://${data.ip}${port}`);
-      } catch (error) {
-        console.error("Erro ao buscar IP:", error);
-        setServerUrl("https://medstock-lilac.vercel.app"); // 🚨 Fallback fixo para produção
-      }
-    };
-
-    fetchIp();
-  }, []);
-
-  console.log("AKKKK", serverUrl);
-  useEffect(() => {
-    if (!ip) return;
-
-    const isProd = process.env.NODE_ENV === "production";
-    const socketUrl = isProd ? `https://${ip}` : `http://${ip}:3000`;
-
-    console.log("Tentando conectar ao WebSocket:", socketUrl);
-
-    const socket = io(socketUrl, {
-      path: "/api/socketio",
-      transports: ["websocket"],
-    });
-
-    socket.on("connect", () => {
-      console.log("✅ Conectado ao WebSocket no formulário!");
-    });
-
-    socket.on("mensagem", (data) => {
-      console.log("📩 Código recebido:", data);
-      if (data.type === "scan") {
-        setCodigoBarras(data.data);
-        form.setFieldsValue({ codigo_barras: data.data });
-      }
-    });
+    const subscription = supabase
+      .channel("realtime:scanned_codes")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "scanned_codes" },
+        (payload) => {
+          setCodigoBarras(payload.new.code);
+          form.setFieldsValue({ codigo_barras: payload.new.code });
+        }
+      )
+      .subscribe();
 
     return () => {
-      console.log("🔌 Desconectando do WebSocket...");
-      socket.disconnect();
+      supabase.removeChannel(subscription);
     };
-  }, [ip, form]);
+  }, []);
 
   const handleTipoProdutoChange = (value: string) => {
     setTipoProduto(value);
@@ -177,22 +133,6 @@ export default function CadastrarProduto() {
       <div style={{ padding: 24 }}>
         <Title level={2}>Cadastrar Produto</Title>
         <Card style={{ padding: 24 }}>
-          <div
-            style={{
-              display: "block",
-              justifyContent: "flex-end",
-              marginBottom: 16,
-            }}
-          >
-            <Title level={4}>Escaneie com seu smartphone</Title>
-            <Button
-              icon={<ScanLine size={16} />}
-              type="primary"
-              onClick={() => setIsModalOpen(true)}
-            >
-              Escanear
-            </Button>
-          </div>
           <Divider />
           <Form form={form} layout="vertical" onFinish={handleSubmit}>
             <Row gutter={16}>
@@ -378,24 +318,6 @@ export default function CadastrarProduto() {
           </Form>
         </Card>
       </div>
-      <Modal
-        style={{
-          width: "70%",
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-        title="Escaneie o QR Code"
-        open={isModalOpen}
-        onCancel={() => setIsModalOpen(false)}
-        footer={null}
-      >
-        <div style={{ textAlign: "center" }}>
-          <QRCode value={serverUrl} size={200} />
-          <p style={{ marginTop: 10 }}>URL: {serverUrl}</p>
-        </div>
-      </Modal>
     </App>
   );
 }
