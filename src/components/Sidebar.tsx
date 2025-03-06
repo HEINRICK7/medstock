@@ -1,7 +1,5 @@
-"use client";
-
 import { useState, useEffect } from "react";
-import { Layout, Menu, Image, MenuProps } from "antd";
+import { Layout, Menu, Image, Button, Divider } from "antd";
 import {
   LayoutDashboard,
   PackagePlus,
@@ -10,39 +8,34 @@ import {
   LogOut,
   Package,
   Warehouse,
+  User,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
-import { useRouter } from "next/navigation"; // Use useRouter do next/navigation para cliente
-import { usePathname } from "next/navigation"; // Para monitorar a mudança de path
-import useBreakpoint from "antd/lib/grid/hooks/useBreakpoint";
+import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+
 const { Sider } = Layout;
 
 const Sidebar = () => {
-  const router = useRouter(); // Roteador cliente
-  const pathname = usePathname(); // Obtém o caminho atual
+  const router = useRouter();
+  const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [activeKey, setActiveKey] = useState<string | null>("dashboard");
-  const [openKeys, setOpenKeys] = useState<string[]>([]); // Controla os menus abertos
-  const screens = useBreakpoint();
+  const [openKeys, setOpenKeys] = useState<string[]>([]);
 
   useEffect(() => {
     if (pathname) {
       setActiveKey(pathname);
     }
   }, [pathname]);
-  // 🔹 Fecha os outros menus ao abrir um novo
-  const handleOpenChange = (keys: string[]) => {
-    setOpenKeys(keys.length > 0 ? [keys[keys.length - 1]] : []);
-  };
-  const menuItems: MenuProps["items"] = [
+
+  const menuItems = [
     {
       key: "dashboard",
       icon: <LayoutDashboard size={20} />,
       label: "Dashboard",
       onClick: () => router.push("/dashboard"),
-    },
-    {
-      key: "produtos",
-      label: "Produtos",
     },
     {
       key: "entrada-produtos",
@@ -88,87 +81,115 @@ const Sidebar = () => {
       label: "Estoque",
       onClick: () => router.push("/estoque"),
     },
-    {
-      key: "logout",
-      icon: <LogOut size={20} />,
-      label: "Sair",
-      danger: true,
-      onClick: () => router.push("/logout"),
-    },
   ];
 
   return (
-    <>
-      {/* Sidebar Desktop */}
-      {screens.md && (
-        <Sider
-          collapsible
-          collapsed={collapsed}
-          onCollapse={(value) => setCollapsed(value)}
-          style={{
-            height: "100vh",
-            position: "relative",
-            top: -104,
-            left: -10,
-            background: "#fff",
-          }}
-          collapsedWidth={0} // Sidebar fecha no mobile
-        >
-          <div
-            style={{ height: "100vh", marginTop: "100px", background: "#fff" }}
-          >
-            <div className="logo" style={{ padding: 16, textAlign: "center" }}>
-              <Image
-                src="/assets/logo_medstock.png"
-                alt="MedStock"
-                width={collapsed ? 40 : 100}
-              />
-            </div>
+    <Sider
+      theme="light"
+      collapsible
+      collapsed={collapsed}
+      trigger={null}
+      style={{
+        height: "100vh",
+        background: "#ffffff",
+        position: "relative",
+        transition: "all 0.3s ease-in-out",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+      }}
+    >
+      {/* Conteúdo Superior */}
+      <div>
+        {/* Logo */}
+        <div style={{ textAlign: "center", padding: "16px" }}>
+          <Image
+            src="/assets/logo_medstock.png"
+            alt="MedStock"
+            width={collapsed ? 40 : 120}
+            preview={false}
+          />
+        </div>
 
-            <Menu
-              mode="inline"
-              selectedKeys={activeKey ? [activeKey] : []}
-              openKeys={openKeys} // Controlando as chaves abertas
-              onOpenChange={handleOpenChange} // Controlando abertura do menu
-              items={menuItems} // Passa os itens do menu para o Ant Design
-            />
-          </div>
-        </Sider>
-      )}
-      {!screens.md && (
-        <Sider
-          collapsible
-          collapsed={true}
-          onCollapse={(value) => setCollapsed(value)}
-          style={{
-            height: "100vh",
-            position: "relative",
-            top: -104,
-            left: -10,
-            background: "#fff",
-          }}
-          collapsedWidth={0} // Sidebar fecha no mobile
-        >
-          <div style={{ height: "100vh", marginTop: "100px" }}>
-            <div className="logo" style={{ padding: 16, textAlign: "center" }}>
-              <Image
-                src="/assets/logo_medstock.png"
-                alt="MedStock"
-                width={collapsed ? 40 : 100}
-              />
-            </div>
+        {/* Menu */}
+        <Menu
+          mode="inline"
+          theme="light"
+          inlineCollapsed={collapsed}
+          selectedKeys={activeKey ? [activeKey] : []}
+          openKeys={openKeys}
+          onOpenChange={(keys) =>
+            setOpenKeys(keys.length > 0 ? [keys[keys.length - 1]] : [])
+          }
+          items={menuItems}
+        />
+      </div>
 
-            <Menu
-              mode="inline"
-              selectedKeys={activeKey ? [activeKey] : []}
-              openKeys={openKeys} // Controlando as chaves abertas
-              onOpenChange={handleOpenChange} // Controlando abertura do menu
-              items={menuItems} // Passa os itens do menu para o Ant Design
-            />
-          </div>
-        </Sider>
-      )}
-    </>
+      {/* Conteúdo Inferior */}
+      <div>
+        {/* Divider antes do usuário */}
+        <Divider style={{margin: "12px 0" }} />
+
+        {/* Usuário */}
+        <div
+          style={{
+            textAlign: "center",
+            padding: "16px",
+            color: "#00395f",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "8px",
+          }}
+        >
+          <User size={30} />
+          {!collapsed && (
+            <div>
+              <h3 style={{ marginBottom: 0, fontSize: "14px" }}>
+                Carlos Henrique
+              </h3>
+              <span style={{ fontSize: 12, color: "#bbb" }}>Admin</span>
+            </div>
+          )}
+        </div>
+
+        {/* Botão de Logout fixado no rodapé */}
+        <Menu
+          mode="inline"
+          theme="light"
+          style={{ position: "absolute", bottom: 0, width: "100%" }}
+          items={[
+            {
+              key: "logout",
+              icon: <LogOut size={20} />,
+              label: "Sair",
+              danger: true,
+              onClick: () => router.push("/logout"),
+            },
+          ]}
+        />
+      </div>
+
+      {/* Botão de Colapsar */}
+      <Button
+        shape="circle"
+        icon={
+          collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />
+        }
+        onClick={() => setCollapsed(!collapsed)}
+        style={{
+          position: "absolute",
+          top: 20,
+          right: -15,
+          background: "#fff",
+          border: "none",
+          boxShadow: "0px 0px 5px rgba(0,0,0,0.2)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      />
+    </Sider>
   );
 };
 
