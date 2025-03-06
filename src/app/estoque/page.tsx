@@ -15,8 +15,10 @@ import {
   Button,
   Card,
   Divider,
+  Col,
+  Row,
 } from "antd";
-import { AlertTriangle, XCircle, Clock } from "lucide-react";
+import { AlertTriangle, XCircle, Clock, RefreshCcw, FileText } from "lucide-react";
 import dayjs from "dayjs";
 
 const { Title } = Typography;
@@ -56,6 +58,7 @@ export default function Estoque() {
   const [validadeFiltro, setValidadeFiltro] = useState<[string, string] | null>(
     null
   );
+  const [pageSize, setPageSize] = useState(5);
   const gerarPDF = () => {
     const doc = new jsPDF();
 
@@ -115,23 +118,26 @@ export default function Estoque() {
     fetchProdutos();
   }, []);
 
-  const getStatusTexto = (quantidade: number, minimo: number, validade?: string): string => {
+  const getStatusTexto = (
+    quantidade: number,
+    minimo: number,
+    validade?: string
+  ): string[] => {
     const hoje = dayjs();
     const diasParaVencer = validade ? dayjs(validade).diff(hoje, "day") : null;
     const status: string[] = [];
-  
+
     if (quantidade === 0) status.push("Em Falta");
     if (quantidade > 0 && quantidade <= minimo) status.push("Estoque Baixo");
     if (diasParaVencer !== null) {
       if (diasParaVencer < 0) status.push("Vencido");
       else if (diasParaVencer <= 30) status.push("Próx. do Vencimento");
     }
-  
-    return status.length > 0 ? status.join(", ") : "Ok";
+
+    return status.length > 0 ? status : ["Ok"];
   };
-  
-  // 🔹 Função para definir status
-  const getStatus = (quantidade: number, minimo: number, validade: string) => {
+
+  const getStatus = (quantidade: number, minimo: number, validade?: string) => {
     const hoje = dayjs();
     const diasParaVencer = validade ? dayjs(validade).diff(hoje, "day") : null;
     const statusTags: JSX.Element[] = [];
@@ -172,14 +178,23 @@ export default function Estoque() {
       }
     }
 
-    return statusTags.length > 0 ? statusTags : <Tag color="green">Ok</Tag>;
+    // Se não tiver nenhum status crítico, adicionar "Ok"
+    if (statusTags.length === 0) {
+      statusTags.push(
+        <Tag color="green" key="ok">
+          Ok
+        </Tag>
+      );
+    }
+
+    return statusTags;
   };
 
-  // 🔹 Aplicar os filtros nos produtos
   const produtosFiltrados = [...produtos, ...produtosVencendo].filter(
     (produto) => {
       if (categoriaFiltro && produto.categoria !== categoriaFiltro)
         return false;
+
       if (validadeFiltro) {
         const validadeProduto = dayjs(produto.data_validade);
         if (
@@ -191,33 +206,72 @@ export default function Estoque() {
       }
 
       if (statusFiltro) {
-        const status = getStatus(
+        const statusProduto = getStatusTexto(
           produto.quantidade_recebida,
           produto.quantidade_minima_estoque,
           produto.data_validade
-            ? dayjs(produto.data_validade).format("DD/MM/YYYY")
-            : "-"
         );
-        const statusText = (Array.isArray(status) ? status : [status])
-          .map((tag) => {
-            if (typeof tag === "object" && "props" in tag) {
-              return tag.props.children[1] as string;
-            }
-            return "";
-          })
-          .filter((text) => text);
 
-        if (!statusText.includes(statusFiltro)) return false;
+        // Garante que pelo menos um dos status do produto corresponde ao filtro
+        if (!statusProduto.some((status) => status === statusFiltro)) {
+          return false;
+        }
       }
 
       return true;
     }
   );
 
+  const prioridadeStatus = [
+    "Vencido",
+    "Em Falta",
+    "Estoque Baixo",
+    "Próx. do Vencimento",
+    "Ok",
+  ];
+
+  produtosFiltrados.sort((a, b) => {
+    const statusAList = getStatusTexto(
+      a.quantidade_recebida,
+      a.quantidade_minima_estoque,
+      a.data_validade
+    );
+    const statusBList = getStatusTexto(
+      b.quantidade_recebida,
+      b.quantidade_minima_estoque,
+      b.data_validade
+    );
+
+    const prioridadeA = Math.min(
+      ...statusAList.map((status) =>
+        prioridadeStatus.indexOf(status) !== -1
+          ? prioridadeStatus.indexOf(status)
+          : Infinity
+      )
+    );
+    const prioridadeB = Math.min(
+      ...statusBList.map((status) =>
+        prioridadeStatus.indexOf(status) !== -1
+          ? prioridadeStatus.indexOf(status)
+          : Infinity
+      )
+    );
+
+    return prioridadeA - prioridadeB;
+  });
+
   return (
-    <>
+    <div style={{ padding: 24 }}>
+      <Title level={2}>Estoque de Produtos</Title>
+
       <div
-        style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 16 }}
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          flexWrap: "wrap",
+          gap: 12,
+          marginBottom: 16,
+        }}
       >
         <Select
           placeholder="Filtrar por Categoria"
@@ -256,35 +310,53 @@ export default function Estoque() {
         />
 
         <Button
-          type="primary"
+          icon={<RefreshCcw size={16} />}
           onClick={() => {
             setCategoriaFiltro(null);
             setStatusFiltro(null);
             setValidadeFiltro(null);
           }}
         >
-          Limpar Filtros
+          Limpar
         </Button>
       </div>
       <Card style={{ padding: 24 }}>
-        <Title level={2}>Estoque de Produtos</Title>
-        <div
+        <Row
           style={{
-            display: "flex",
-            justifyContent: "flex-end",
             marginBottom: 16,
+            display: "flex",
+            justifyContent: "space-between",
           }}
         >
-          <Button type="primary" onClick={gerarPDF}>
-            Gerar Relatório PDF
-          </Button>
-        </div>
+          <Col>
+            <span>Itens por página: </span>
+            <Select
+              value={pageSize}
+              onChange={(value) => setPageSize(value)}
+              style={{ width: 80, marginLeft: 8 }}
+            >
+              <Option value={5}>5</Option>
+              <Option value={10}>10</Option>
+              <Option value={20}>20</Option>
+            </Select>
+          </Col>
+          <Col>
+            <Button
+              type="primary"
+              icon={<FileText size={16} />}
+              onClick={gerarPDF}
+            >
+              Gerar Relatório
+            </Button>
+          </Col>
+        </Row>
         <Divider />
         {loading ? (
           <Spin size="large" />
         ) : (
           <Table
             dataSource={produtosFiltrados}
+            pagination={{ pageSize }}
             scroll={{ x: "max-content" }} // 🔹 Responsivo com rolagem horizontal
             columns={[
               {
@@ -331,14 +403,17 @@ export default function Estoque() {
               {
                 title: "Status",
                 key: "status",
-                render: (_, record) =>
-                  getStatus(
-                    record.quantidade_recebida,
-                    record.quantidade_minima_estoque,
-                    record.data_validade
-                      ? dayjs(record.data_validade).format("DD/MM/YYYY")
-                      : "-"
-                  ),
+                render: (_, record) => (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    {getStatus(
+                      record.quantidade_recebida,
+                      record.quantidade_minima_estoque,
+                      record.data_validade
+                        ? dayjs(record.data_validade).format("YYYY-MM-DD")
+                        : undefined
+                    )}
+                  </div>
+                ),
                 responsive: ["xs", "sm", "md", "lg", "xl"],
               },
             ]}
@@ -346,6 +421,6 @@ export default function Estoque() {
           />
         )}
       </Card>
-    </>
+    </div>
   );
 }

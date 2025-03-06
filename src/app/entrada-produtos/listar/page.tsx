@@ -12,12 +12,18 @@ import {
   Card,
   Row,
   Col,
+  Popconfirm,
 } from "antd";
-import { Eye, Edit, Trash2, FileText, Search, RefreshCcw } from "lucide-react";
+import { Eye, Edit, Trash2, RefreshCcw, FileText } from "lucide-react";
+import debounce from "lodash.debounce";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import dayjs from "dayjs";
+import "dayjs/locale/pt-br";
 import { useRouter } from "next/navigation";
+import Title from "antd/es/typography/Title";
+
+dayjs.locale("pt-br");
 
 const { Option } = Select;
 const { RangePicker } = DatePicker;
@@ -26,55 +32,49 @@ interface Produto {
   id: string;
   nome_produto: string;
   codigo_barras: string;
-  tipo_produto: string;
   categoria: string;
-  unidade_medida: string;
-  fabricante?: string;
-  fornecedor?: string;
-  numero_lote?: string;
-  descricao?: string;
-  data_fabricacao?: string;
-  data_validade?: string;
   quantidade_recebida: number;
-  numero_nota_fiscal?: string;
-  quantidade_minima_estoque: number;
   data_entrada: string;
-  responsavel: string;
+  origem: string;
+  fabricante: string;
+  fornecedor: string;
+  numero_lote: string;
 }
 
 export default function ListarProdutos() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
     nome: "",
     categoria: "",
     dataEntrada: null as [dayjs.Dayjs, dayjs.Dayjs] | null,
-    estoqueBaixo: false,
   });
-
+  const [pageSize, setPageSize] = useState(5);
   const router = useRouter();
 
   useEffect(() => {
     fetchProdutos();
   }, []);
 
-  async function fetchProdutos() {
+  const fetchProdutos = async (updatedFilters = filters) => {
     setLoading(true);
-    let query = supabase.from("produtos").select("*");
+    let query = supabase
+      .from("produtos")
+      .select("*")
+      .order("data_entrada", { ascending: false });
 
-    if (filters.nome) {
-      query = query.ilike("nome_produto", `%${filters.nome}%`);
+    if (updatedFilters.nome.length >= 3) {
+      query = query.ilike("nome_produto", `%${updatedFilters.nome}%`);
     }
-    if (filters.categoria) {
-      query = query.eq("categoria", filters.categoria);
+
+    if (updatedFilters.categoria) {
+      query = query.eq("categoria", updatedFilters.categoria);
     }
-    if (filters.dataEntrada) {
-      const [start, end] = filters.dataEntrada;
+
+    if (updatedFilters.dataEntrada) {
+      const [start, end] = updatedFilters.dataEntrada;
       query = query.gte("data_entrada", start.format("YYYY-MM-DD"));
       query = query.lte("data_entrada", end.format("YYYY-MM-DD"));
-    }
-    if (filters.estoqueBaixo) {
-      query = query.lte("quantidade_recebida", 10);
     }
 
     const { data, error } = await query;
@@ -84,50 +84,109 @@ export default function ListarProdutos() {
       setProdutos(data || []);
     }
     setLoading(false);
-  }
+  };
 
-  function gerarPDF() {
+  const debouncedFetchProdutos = debounce(fetchProdutos, 500);
+
+  const handleLimparFiltros = () => {
+    const resetFilters = { nome: "", categoria: "", dataEntrada: null };
+    setFilters(resetFilters);
+    fetchProdutos(resetFilters);
+  };
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("produtos").delete().eq("id", id);
+    if (error) {
+      message.error("Erro ao deletar o produto: " + error.message);
+    } else {
+      message.success("Produto deletado com sucesso!");
+      fetchProdutos(); // Atualiza a lista após a exclusão
+    }
+  };
+
+  const gerarPDF = () => {
     const doc = new jsPDF();
     doc.setFont("helvetica", "bold");
     doc.setFontSize(18);
     doc.text("RELATÓRIO DE PRODUTOS", 105, 15, { align: "center" });
 
     doc.setFontSize(12);
-    doc.text(`Data de Geração: ${new Date().toLocaleDateString()}`, 14, 25);
+    doc.text(`Data de Geração: ${dayjs().format("DD/MM/YYYY")}`, 14, 25);
 
-    autoTable(doc, {
-      startY: 30,
-      head: [["Código", "Nome", "Categoria", "Quantidade", "Data de Entrada"]],
-      body: produtos.map((p) => [
-        p.codigo_barras,
-        p.nome_produto,
-        p.categoria,
-        p.quantidade_recebida,
-        p.data_entrada,
-      ]),
-      theme: "grid",
+    produtos.forEach((p, index) => {
+      // Adiciona uma seção de informações de origem para cada produto
+      doc.setFontSize(14);
+      doc.setTextColor(40, 40, 150);
+      doc.text(`2. Informações de Origem - Produto ${index + 1}`, 14, 35);
+      autoTable(doc, {
+        startY: 30,
+        head: [["Campo", "Valor"]],
+        body: produtos.map((p) => [
+          ["Fabricante", p.fabricante || "Não informado"],
+          ["Fornecedor", p.fornecedor || "Não informado"],
+          ["Número do Lote", p.numero_lote || "N/A"],
+        ]),
+        theme: "grid",
+        styles: { fontSize: 10 },
+      });
+
+      // Adiciona a tabela principal de produtos
+      autoTable(doc, {
+        startY: 30,
+        head: [
+          [
+            "Código",
+            "Nome",
+            "Categoria",
+            "Quantidade",
+            "Data de Entrada",
+            "Origem",
+          ],
+        ],
+        body: produtos.map((p) => [
+          p.codigo_barras,
+          p.nome_produto,
+          p.categoria.replace(/_/g, " "),
+          p.quantidade_recebida,
+          dayjs(p.data_entrada).format("DD/MM/YYYY"),
+          p.fabricante || "Não informado",
+        ]),
+        theme: "grid",
+      });
     });
 
     doc.save(`Relatorio_Produtos.pdf`);
-  }
+  };
 
   return (
     <div style={{ padding: 24 }}>
-      <h2>Listar Produtos</h2>
+      <Title level={2}>Listar Produtos</Title>
       <div style={{ marginBottom: 16 }}>
         <Row gutter={16}>
-          <Col xs={24} md={16} sm={16} lg={5}>
+          <Col xs={24} md={8}>
             <Input
               placeholder="Nome do Produto"
               value={filters.nome}
-              onChange={(e) => setFilters({ ...filters, nome: e.target.value })}
+              onChange={(e) => {
+                const nome = e.target.value;
+                setFilters((prev) => ({ ...prev, nome }));
+
+                if (nome.length === 0) {
+                  fetchProdutos();
+                } else if (nome.length >= 3) {
+                  debouncedFetchProdutos();
+                }
+              }}
             />
           </Col>
-          <Col xs={24} md={8} sm={8} lg={4}>
+          <Col xs={24} md={6}>
             <Select
               placeholder="Categoria"
               value={filters.categoria}
-              onChange={(value) => setFilters({ ...filters, categoria: value })}
+              onChange={(value) => {
+                setFilters((prev) => ({ ...prev, categoria: value }));
+                fetchProdutos({ ...filters, categoria: value });
+              }}
               style={{ width: "100%" }}
             >
               <Option value="">Todas</Option>
@@ -136,43 +195,27 @@ export default function ListarProdutos() {
               <Option value="material_consumo">Material de Consumo</Option>
             </Select>
           </Col>
-          <Col xs={24} md={24} sm={24} lg={8}>
+          <Col xs={24} md={6}>
             <RangePicker
-              onChange={(dates) =>
-                setFilters({
+              placeholder={["Data Inicial", "Data Final"]}
+              format="DD/MM/YYYY"
+              onChange={(dates) => {
+                setFilters((prev) => ({
+                  ...prev,
+                  dataEntrada: dates as [dayjs.Dayjs, dayjs.Dayjs],
+                }));
+                fetchProdutos({
                   ...filters,
                   dataEntrada: dates as [dayjs.Dayjs, dayjs.Dayjs],
-                })
-              }
+                });
+              }}
               style={{ width: "100%" }}
             />
           </Col>
-          <Col
-            xs={12}
-            sm={6}
-            md={4}
-            lg={4}
-            style={{ display:"flex",flexDirection:"row" }}
-          >
-            <Button
-              type="primary"
-              icon={<Search size={16} />}
-              onClick={fetchProdutos}
-              style={{ width: "100%", marginRight: 10 }}
-            >
-              Filtrar
-            </Button>
+          <Col xs={24} md={4}>
             <Button
               icon={<RefreshCcw size={16} />}
-              onClick={() => {
-                setFilters({
-                  nome: "",
-                  categoria: "",
-                  dataEntrada: null,
-                  estoqueBaixo: false,
-                });
-                fetchProdutos();
-              }}
+              onClick={handleLimparFiltros}
               style={{ width: "100%" }}
             >
               Limpar
@@ -182,29 +225,43 @@ export default function ListarProdutos() {
       </div>
 
       <Card style={{ padding: 24 }}>
-        <div
+        <Row
           style={{
-            display: "flex",
-            justifyContent: "right",
-            gap: 12,
             marginBottom: 16,
+            display: "flex",
+            justifyContent: "space-between",
           }}
         >
-          <Button
-            type="primary"
-            icon={<FileText size={16} />}
-            onClick={gerarPDF}
-          >
-            Gerar Relatório
-          </Button>
-        </div>
+          <Col>
+            <span>Itens por página: </span>
+            <Select
+              value={pageSize}
+              onChange={(value) => setPageSize(value)}
+              style={{ width: 80, marginLeft: 8 }}
+            >
+              <Option value={5}>5</Option>
+              <Option value={10}>10</Option>
+              <Option value={20}>20</Option>
+            </Select>
+          </Col>
+          <Col>
+            <Button
+              type="primary"
+              icon={<FileText size={16} />}
+              onClick={gerarPDF}
+            >
+              Gerar Relatório
+            </Button>
+          </Col>
+        </Row>
 
         <Table
           dataSource={produtos}
           loading={loading}
           rowKey="id"
-          pagination={{ pageSize: 5 }}
-          scroll={{ x: 800 }} // Para garantir que a tabela seja rolável em telas menores
+          pagination={{ pageSize }}
+          scroll={{ x: 800 }}
+          locale={{ emptyText: "Nenhum produto encontrado" }}
           columns={[
             {
               title: "Código",
@@ -220,6 +277,7 @@ export default function ListarProdutos() {
               title: "Categoria",
               dataIndex: "categoria",
               key: "categoria",
+              render: (text) => text.replace(/_/g, " "),
             },
             {
               title: "Quantidade",
@@ -230,6 +288,7 @@ export default function ListarProdutos() {
               title: "Data de Entrada",
               dataIndex: "data_entrada",
               key: "data_entrada",
+              render: (text) => dayjs(text).format("DD/MM/YYYY"),
             },
             {
               title: "Ações",
@@ -250,12 +309,14 @@ export default function ListarProdutos() {
                       router.push(`/entrada-produtos/editar/${record.id}`)
                     }
                   />
-                  <Button
-                    type="primary"
-                    danger
-                    icon={<Trash2 size={16} />}
-                    onClick={() => console.log("Excluir", record.id)}
-                  />
+                  <Popconfirm
+                    title="Tem certeza que deseja excluir este produto?"
+                    okText="Sim"
+                    cancelText="Cancelar"
+                    onConfirm={() => handleDelete(record.id)}
+                  >
+                    <Button danger icon={<Trash2 size={16} />} />
+                  </Popconfirm>
                 </div>
               ),
             },

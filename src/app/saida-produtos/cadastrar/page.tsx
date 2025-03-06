@@ -189,7 +189,15 @@ export default function SaidaProduto() {
               name="data_saida"
               rules={[{ required: true, message: "Informe a data de saída!" }]}
             >
-              <DatePicker format="DD/MM/YYYY" style={{ width: "100%" }} />
+              <DatePicker
+                disabledDate={(current) =>
+                  current && current.isBefore(dayjs().startOf("day"))
+                }
+                placeholder="Selecione uma data"
+                defaultValue={dayjs()}
+                format="DD/MM/YYYY"
+                style={{ width: "100%" }}
+              />
             </Form.Item>
 
             <Form.Item

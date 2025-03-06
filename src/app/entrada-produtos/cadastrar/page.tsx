@@ -37,7 +37,7 @@ interface Produto {
   data_fabricacao?: string;
   data_validade?: string;
   quantidade_recebida: number;
-  numero_nota_fiscal?: string;
+  numero_nota_fiscal?: number;
   quantidade_minima_estoque: number;
   data_entrada: string;
   responsavel: string;
@@ -98,18 +98,18 @@ export default function CadastrarProduto() {
           : null,
       descricao: values.descricao || null,
       data_fabricacao: values.data_fabricacao
-        ? dayjs(values.data_fabricacao).format("YYYY-MM-DD")
+        ? dayjs(values.data_fabricacao).format("DD-MM-YYYY")
         : null,
       data_validade:
         (tipoProduto === "medicamento" ||
           (tipoProduto === "geral" && isPerecivel)) &&
         values.data_validade
-          ? dayjs(values.data_validade).format("YYYY-MM-DD")
+          ? dayjs(values.data_validade).format("DD-MM-YYYY")
           : null,
       quantidade_recebida: values.quantidade_recebida,
       numero_nota_fiscal: values.numero_nota_fiscal || null,
       quantidade_minima_estoque: values.quantidade_minima_estoque,
-      data_entrada: dayjs(values.data_entrada).format("YYYY-MM-DD"),
+      data_entrada: dayjs(values.data_entrada).format("DD-MM-YYYY"),
       responsavel: values.responsavel,
     };
 
@@ -140,7 +140,12 @@ export default function CadastrarProduto() {
                 <Form.Item
                   label="Código de Barras / QR Code"
                   name="codigo_barras"
-                  rules={[{ required: true }]}
+                  rules={[
+                    {
+                      required: true,
+                      message: "Por favor, insira código de barras / QR code",
+                    },
+                  ]}
                 >
                   <Input
                     ref={qrCodeInputRef}
@@ -154,7 +159,12 @@ export default function CadastrarProduto() {
                 <Form.Item
                   label="Nome do Produto"
                   name="nome_produto"
-                  rules={[{ required: true }]}
+                  rules={[
+                    {
+                      required: true,
+                      message: "Por favor, insira nome do produto",
+                    },
+                  ]}
                 >
                   <Input placeholder="Digite um nome" />
                 </Form.Item>
@@ -166,7 +176,12 @@ export default function CadastrarProduto() {
                 <Form.Item
                   label="Tipo de Produto"
                   name="tipo_produto"
-                  rules={[{ required: true }]}
+                  rules={[
+                    {
+                      required: true,
+                      message: "Por favor, insira tipo de produto",
+                    },
+                  ]}
                 >
                   <Select
                     placeholder="Selecione"
@@ -183,7 +198,9 @@ export default function CadastrarProduto() {
                 <Form.Item
                   label="Categoria"
                   name="categoria"
-                  rules={[{ required: true }]}
+                  rules={[
+                    { required: true, message: "Por favor, insira categoria" },
+                  ]}
                 >
                   <Select placeholder="Selecione">
                     <Option value="analgesicos">Analgésicos</Option>
@@ -202,7 +219,9 @@ export default function CadastrarProduto() {
                 <Form.Item
                   label="Unidade de Medida"
                   name="unidade_medida"
-                  rules={[{ required: true }]}
+                  rules={[
+                    { required: true, message: "Por favor, insira unidade" },
+                  ]}
                 >
                   <Select placeholder="Selecione">
                     <Option value="ml">mL</Option>
@@ -218,7 +237,9 @@ export default function CadastrarProduto() {
             <Form.Item
               label="Descrição"
               name="descricao"
-              rules={[{ required: true }]}
+              rules={[
+                { required: true, message: "Por favor, insira descrição" },
+              ]}
             >
               <Input.TextArea rows={3} placeholder="Digite uma descrição" />
             </Form.Item>
@@ -254,7 +275,11 @@ export default function CadastrarProduto() {
             <Row gutter={16}>
               <Col xs={24} sm={12} md={12}>
                 <Form.Item label="Data de Fabricação" name="data_fabricacao">
-                  <DatePicker format="DD/MM/YYYY" style={{ width: "100%" }} />
+                  <DatePicker
+                    format="DD/MM/YYYY"
+                    placeholder="Selecione uma data"
+                    style={{ width: "100%" }}
+                  />
                 </Form.Item>
               </Col>
 
@@ -262,7 +287,11 @@ export default function CadastrarProduto() {
                 (tipoProduto === "geral" && isPerecivel)) && (
                 <Col xs={24} sm={12} md={12}>
                   <Form.Item label="Data de Validade" name="data_validade">
-                    <DatePicker format="DD/MM/YYYY" style={{ width: "100%" }} />
+                    <DatePicker
+                      format="DD/MM/YYYY"
+                      placeholder="Selecione uma data"
+                      style={{ width: "100%" }}
+                    />
                   </Form.Item>
                 </Col>
               )}
@@ -271,9 +300,19 @@ export default function CadastrarProduto() {
                 <Form.Item
                   label="Data de Entrada"
                   name="data_entrada"
-                  rules={[{ required: true }]}
+                  rules={[
+                    { required: true, message: "Por favor, insira data" },
+                  ]}
                 >
-                  <DatePicker format="DD/MM/YYYY" style={{ width: "100%" }} />
+                  <DatePicker
+                    disabledDate={(current) =>
+                      current && current.isBefore(dayjs().startOf("day"))
+                    }
+                    placeholder="Selecione uma data"
+                    defaultValue={dayjs()}
+                    format="DD/MM/YYYY"
+                    style={{ width: "100%" }}
+                  />
                 </Form.Item>
               </Col>
             </Row>
@@ -283,7 +322,9 @@ export default function CadastrarProduto() {
                 <Form.Item
                   label="Quantidade Recebida"
                   name="quantidade_recebida"
-                  rules={[{ required: true }]}
+                  rules={[
+                    { required: true, message: "Por favor, insira quantidade" },
+                  ]}
                 >
                   <InputNumber min={0} style={{ width: "100%" }} />
                 </Form.Item>
@@ -293,7 +334,12 @@ export default function CadastrarProduto() {
                 <Form.Item
                   label="Qnt. Mínima em Estoque"
                   name="quantidade_minima_estoque"
-                  rules={[{ required: true }]}
+                  rules={[
+                    {
+                      required: true,
+                      message: "Por favor, insira Qnt. mínima em estoque",
+                    },
+                  ]}
                 >
                   <InputNumber min={0} style={{ width: "100%" }} />
                 </Form.Item>
@@ -307,7 +353,12 @@ export default function CadastrarProduto() {
             <Form.Item
               label="Responsável pela Entrada"
               name="responsavel"
-              rules={[{ required: true }]}
+              rules={[
+                {
+                  required: true,
+                  message: "Por favor, insira responsável pela Entrada",
+                },
+              ]}
             >
               <Input placeholder="Digite o nome" />
             </Form.Item>

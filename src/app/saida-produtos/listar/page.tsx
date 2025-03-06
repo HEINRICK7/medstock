@@ -13,8 +13,10 @@ import {
   Divider,
   Popconfirm,
   message,
+  Row,
+  Col,
 } from "antd";
-import { FileText, Eye, Edit, Trash2 } from "lucide-react";
+import { FileText, Eye, Edit, Trash2, RefreshCcw } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useRouter } from "next/navigation";
@@ -50,6 +52,10 @@ export default function ListarSaidas() {
   const [produtoFiltro, setProdutoFiltro] = useState<string | null>(null);
   const [destinoFiltro, setDestinoFiltro] = useState<string | null>(null);
   const [dataFiltro, setDataFiltro] = useState<[string, string] | null>(null);
+  const [responsavelFiltro, setResponsavelFiltro] = useState<string | null>(
+    null
+  );
+  const [pageSize, setPageSize] = useState(5); // Estado para a paginação
 
   useEffect(() => {
     async function fetchData() {
@@ -88,6 +94,8 @@ export default function ListarSaidas() {
   const saidasFiltradas = saidas.filter((saida) => {
     if (produtoFiltro && saida.produto_id !== produtoFiltro) return false;
     if (destinoFiltro && saida.destino !== destinoFiltro) return false;
+    if (responsavelFiltro && saida.responsavel !== responsavelFiltro)
+      return false;
     if (dataFiltro) {
       const dataSaida = dayjs(saida.data_saida);
       if (
@@ -157,11 +165,27 @@ export default function ListarSaidas() {
       <Title level={2}>Saídas de Produtos</Title>
 
       {/* 🔹 Filtros */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 12,
+          marginBottom: 16,
+          alignItems: "flex-end",
+          justifyContent: "flex-end",
+          width: "100%",
+        }}
+      >
         <Select
+          showSearch
           placeholder="Filtrar por Produto"
           allowClear
-          style={{ width: 200 }}
+          style={{ width: 500 }}
+          optionFilterProp="children"
+          filterOption={(input, option) =>
+            (option?.children as unknown as string)
+              .toLowerCase()
+              .includes(input.toLowerCase())
+          }
           onChange={(value) => setProdutoFiltro(value)}
         >
           {produtos.map((produto) => (
@@ -181,7 +205,20 @@ export default function ListarSaidas() {
           <Option value="Farmácia">Farmácia</Option>
           <Option value="Posto de Saúde">Posto de Saúde</Option>
         </Select>
-
+        <Select
+          placeholder="Filtrar por Responsável"
+          allowClear
+          style={{ width: 200 }}
+          onChange={(value) => setResponsavelFiltro(value)}
+        >
+          {Array.from(new Set(saidas.map((s) => s.responsavel))).map(
+            (responsavel) => (
+              <Option key={responsavel} value={responsavel}>
+                {responsavel}
+              </Option>
+            )
+          )}
+        </Select>
         <RangePicker
           placeholder={["Data Inicial", "Data Final"]}
           format="DD/MM/YYYY"
@@ -193,16 +230,16 @@ export default function ListarSaidas() {
             )
           }
         />
-
         <Button
-          type="primary"
+          icon={<RefreshCcw size={16} />}
           onClick={() => {
             setProdutoFiltro(null);
             setDestinoFiltro(null);
             setDataFiltro(null);
+            setResponsavelFiltro(null);
           }}
         >
-          Limpar Filtros
+          Limpar
         </Button>
       </div>
 
@@ -211,13 +248,25 @@ export default function ListarSaidas() {
         <Spin size="large" />
       ) : (
         <Card style={{ padding: 24 }}>
-          <div
+          <Row
             style={{
+              marginBottom: 16,
               display: "flex",
-              justifyContent: "right",
-              gap: 12,
+              justifyContent: "space-between",
             }}
           >
+            <Col>
+              <span>Itens por página: </span>
+              <Select
+                value={pageSize}
+                onChange={(value) => setPageSize(value)}
+                style={{ width: 80, marginLeft: 8 }}
+              >
+                <Option value={5}>5</Option>
+                <Option value={10}>10</Option>
+                <Option value={20}>20</Option>
+              </Select>
+            </Col>
             <Button
               type="primary"
               icon={<FileText size={16} />}
@@ -226,10 +275,11 @@ export default function ListarSaidas() {
             >
               Gerar Relatório PDF
             </Button>
-          </div>
+          </Row>
           <Divider />
           <Table
             dataSource={saidasFiltradas}
+            pagination={{ pageSize }}
             columns={[
               {
                 title: "Documento",
@@ -257,6 +307,11 @@ export default function ListarSaidas() {
                 render: (data) => dayjs(data).format("DD/MM/YYYY"),
               },
               {
+                title: "Responsável",
+                dataIndex: "responsavel",
+                key: "responsavel",
+              },
+              {
                 title: "Ações",
                 key: "acoes",
                 render: (_, record) => (
@@ -274,7 +329,9 @@ export default function ListarSaidas() {
                       }
                     />
                     <Popconfirm
-                      title="Tem certeza?"
+                      title="Tem certeza que deseja excluir este produto?"
+                      okText="Sim"
+                      cancelText="Cancelar"
                       onConfirm={() => excluirSaida(record.id)}
                     >
                       <Button danger icon={<Trash2 size={16} />} />
@@ -284,7 +341,6 @@ export default function ListarSaidas() {
               },
             ]}
             rowKey="id"
-            pagination={{ pageSize: 5 }}
           />
         </Card>
       )}
