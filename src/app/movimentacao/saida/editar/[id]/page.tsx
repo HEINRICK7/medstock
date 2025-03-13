@@ -53,7 +53,7 @@ export default function EditarSaida() {
   useEffect(() => {
     async function fetchSaida() {
       const { data: saida, error } = await supabase
-        .from("saidas")
+        .from("movimentacoes_estoque")
         .select("*")
         .eq("id", id)
         .single();
@@ -71,7 +71,7 @@ export default function EditarSaida() {
 
     async function fetchProdutos() {
       const { data: produtosData, error } = await supabase
-        .from("produtos")
+        .from("estoque_produtos")
         .select("id, nome_produto");
 
       if (!error) setProdutos(produtosData as Produto[]);
@@ -89,14 +89,14 @@ export default function EditarSaida() {
     };
 
     const { error } = await supabase
-      .from("saidas")
+      .from("movimentacoes_estoque")
       .update(updatedSaida)
       .eq("id", id);
     if (error) {
       message.error("Erro ao atualizar saída: " + error.message);
     } else {
       message.success("Saída atualizada com sucesso!");
-      router.push("/saida-produtos/listar");
+      router.push("/movimentacao/saida/listar");
     }
     setLoading(false);
   };
@@ -110,7 +110,7 @@ export default function EditarSaida() {
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
           <Form.Item
             label="Produto"
-            name="produto_id"
+            name="nome_produto"
             rules={[{ required: true }]}
           >
             <Select placeholder="Selecione um produto">

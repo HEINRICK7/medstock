@@ -53,45 +53,47 @@ export default function ListarProdutos() {
   const router = useRouter();
 
   useEffect(() => {
-    fetchProdutos();
+    fetchEntradas();
   }, []);
 
-  const fetchProdutos = async (updatedFilters = filters) => {
+  const fetchEntradas = async (updatedFilters = filters) => {
     setLoading(true);
     let query = supabase
-      .from("produtos")
+      .from("movimentacoes_estoque")
       .select("*")
-      .order("data_entrada", { ascending: false });
-
+      .eq("tipo_movimentacao", "entrada")
+      .order("data_movimentacao", { ascending: false });
+  
     if (updatedFilters.nome.length >= 3) {
       query = query.ilike("nome_produto", `%${updatedFilters.nome}%`);
     }
-
+  
     if (updatedFilters.categoria) {
       query = query.eq("categoria", updatedFilters.categoria);
     }
-
+  
     if (updatedFilters.dataEntrada) {
       const [start, end] = updatedFilters.dataEntrada;
       query = query.gte("data_entrada", start.format("YYYY-MM-DD"));
       query = query.lte("data_entrada", end.format("YYYY-MM-DD"));
     }
-
+  
     const { data, error } = await query;
     if (error) {
-      message.error("Erro ao buscar produtos: " + error.message);
+      message.error("Erro ao buscar entradas: " + error.message);
     } else {
       setProdutos(data || []);
     }
     setLoading(false);
   };
+  
 
-  const debouncedFetchProdutos = debounce(fetchProdutos, 500);
+  const debouncedfetchEntradas = debounce(fetchEntradas, 500);
 
   const handleLimparFiltros = () => {
     const resetFilters = { nome: "", categoria: "", dataEntrada: null };
     setFilters(resetFilters);
-    fetchProdutos(resetFilters);
+    fetchEntradas(resetFilters);
   };
 
   const handleDelete = async (id: string) => {
@@ -100,7 +102,7 @@ export default function ListarProdutos() {
       message.error("Erro ao deletar o produto: " + error.message);
     } else {
       message.success("Produto deletado com sucesso!");
-      fetchProdutos(); // Atualiza a lista após a exclusão
+      fetchEntradas(); // Atualiza a lista após a exclusão
     }
   };
 
@@ -172,9 +174,9 @@ export default function ListarProdutos() {
                 setFilters((prev) => ({ ...prev, nome }));
 
                 if (nome.length === 0) {
-                  fetchProdutos();
+                  fetchEntradas();
                 } else if (nome.length >= 3) {
-                  debouncedFetchProdutos();
+                  debouncedfetchEntradas();
                 }
               }}
             />
@@ -185,7 +187,7 @@ export default function ListarProdutos() {
               value={filters.categoria}
               onChange={(value) => {
                 setFilters((prev) => ({ ...prev, categoria: value }));
-                fetchProdutos({ ...filters, categoria: value });
+                fetchEntradas({ ...filters, categoria: value });
               }}
               style={{ width: "100%" }}
             >
@@ -204,7 +206,7 @@ export default function ListarProdutos() {
                   ...prev,
                   dataEntrada: dates as [dayjs.Dayjs, dayjs.Dayjs],
                 }));
-                fetchProdutos({
+                fetchEntradas({
                   ...filters,
                   dataEntrada: dates as [dayjs.Dayjs, dayjs.Dayjs],
                 });
@@ -277,7 +279,6 @@ export default function ListarProdutos() {
               title: "Categoria",
               dataIndex: "categoria",
               key: "categoria",
-              render: (text) => text.replace(/_/g, " "),
             },
             {
               title: "Quantidade",
@@ -299,14 +300,14 @@ export default function ListarProdutos() {
                     type="default"
                     icon={<Eye size={16} />}
                     onClick={() =>
-                      router.push(`/entrada-produtos/visualizar/${record.id}`)
+                      router.push(`/movimentacao/entrada/visualizar/${record.id}`)
                     }
                   />
                   <Button
                     type="default"
                     icon={<Edit size={16} />}
                     onClick={() =>
-                      router.push(`/entrada-produtos/editar/${record.id}`)
+                      router.push(`/movimentacao/entrada/editar/${record.id}`)
                     }
                   />
                   <Popconfirm

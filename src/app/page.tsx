@@ -1,5 +1,5 @@
-import Login from "./login/page"; // Importa a página de login
+import HomeApp from "./home/page"; // Importa a página de login
 
 export default function Home() {
-  return <Login />;
+  return <HomeApp />;
 }

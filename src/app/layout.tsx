@@ -1,20 +1,29 @@
-import React from "react";
-import AppLayout from "@/components/Layout";
+"use client";
 
-import { AntdRegistry } from "@ant-design/nextjs-registry";
-import { ConfigProvider } from "antd";
-import theme from "@/theme/themeConfig";
+import { usePathname } from "next/navigation";
+import { Layout } from "antd";
+import Sidebar from "@/components/Sidebar";
 
-const RootLayout = ({ children }: React.PropsWithChildren) => (
-  <html lang="pt">
-    <body>
-      <AntdRegistry>
-        <ConfigProvider theme={theme}>
-          <AppLayout>{children}</AppLayout>
-        </ConfigProvider>
-      </AntdRegistry>
-    </body>
-  </html>
-);
+const { Content } = Layout;
 
-export default RootLayout;
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
+  // 🔹 Oculta a sidebar na tela de login
+  const isLoginPage = pathname === "/login" || pathname === "/";
+
+  return (
+    <html lang="pt">
+      <body>
+        <Layout style={{ minHeight: "100vh" }}>
+          {!isLoginPage && <Sidebar />}
+          <Layout style={{ flex: 1 }}>
+            <Content style={{ padding: 24, backgroundColor: "#f0f2f5" }}>
+              {children}
+            </Content>
+          </Layout>
+        </Layout>
+      </body>
+    </html>
+  );
+}

@@ -38,13 +38,15 @@ export default function VisualizarProduto() {
   const [produto, setProduto] = useState<Produto | null>(null);
   const [loading, setLoading] = useState(true);
   const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
+  
   useEffect(() => {
     async function fetchProduto() {
       if (!id) return;
       const { data, error } = await supabase
-        .from("produtos")
+        .from("movimentacoes_estoque")
         .select("*")
         .eq("id", id)
+        .eq("tipo_movimentacao", "entrada") // 🔹 Garantimos que é uma ENTRADA
         .single();
 
       if (error) {

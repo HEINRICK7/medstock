@@ -1,12 +1,11 @@
 import { supabase } from "./supabase";
-import dayjs from "dayjs";
 
-interface Produto {
-  id: string;
-  nome_produto: string;
-  codigo_barras: string;
-  tipo_produto: string;
-  categoria: string;
+interface EntradaProduto {
+  id?: string;
+  nome_produto?: string;
+  codigo_barras?: string;
+  tipo_produto?: string;
+  categoria?: string;
   unidade_medida: string;
   fabricante?: string;
   fornecedor?: string;
@@ -14,24 +13,39 @@ interface Produto {
   descricao?: string;
   data_fabricacao?: string;
   data_validade?: string;
-  quantidade_recebida: number;
   numero_nota_fiscal?: string;
-  quantidade_minima_estoque: number;
-  data_entrada: string;
+  quantidade_minima_estoque?: number;
+  qunatidade?: number;
+  responsavel?: string;
+}
+interface SaidaProduto {
+  produto_id: string;
+  codigo_barras: string;
+  nome_produto: string;
+  unidade_medida: string;
+  quantidade: number;
+  data_saida: string;
   responsavel: string;
 }
 /**
  * Busca produtos com estoque baixo ou em falta.
  */
-export async function buscarProdutosEstoqueBaixo(): Promise<Produto[]> {
-  const { data, error } = await supabase
-    .from("produtos")
-    .select(
-      "id, nome_produto, codigo_barras, tipo_produto, categoria, unidade_medida, fabricante, fornecedor, numero_lote, descricao, data_fabricacao, data_validade, quantidade_recebida, numero_nota_fiscal, quantidade_minima_estoque, data_entrada, responsavel"
-    );
+
+export async function buscarProdutosEstoque(): Promise<EntradaProduto[]> {
+  const { data, error } = await supabase.from("estoque_produtos") // 🔹 Mudamos de "produtos" para "estoque_produtos"
+    .select(`
+      id, 
+      nome_produto, 
+      codigo_barras, 
+      categoria, 
+      unidade_medida, 
+      quantidade, 
+      estoque_minimo, 
+      data_validade
+    `);
 
   if (error) {
-    console.error("Erro ao buscar produtos com estoque baixo:", error.message);
+    console.error("Erro ao buscar produtos em estoque:", error.message);
     return [];
   }
 
@@ -39,44 +53,30 @@ export async function buscarProdutosEstoqueBaixo(): Promise<Produto[]> {
     id: produto.id,
     nome_produto: produto.nome_produto,
     codigo_barras: produto.codigo_barras,
-    tipo_produto: produto.tipo_produto || "",
     categoria: produto.categoria,
-    unidade_medida: produto.unidade_medida || "",
-    fabricante: produto.fabricante || "",
-    fornecedor: produto.fornecedor || "",
-    numero_lote: produto.numero_lote || "",
-    descricao: produto.descricao || "",
-    data_fabricacao: produto.data_fabricacao || "",
+    unidade_medida: produto.unidade_medida,
+    quantidade: produto.quantidade ?? 0, // 🔹 Aqui era "quantidade", agora usamos "quantidade"
+    quantidade_minima_estoque: produto.estoque_minimo ?? 1, // 🔹 Ajustamos para refletir "estoque_minimo"
     data_validade: produto.data_validade || "",
-    quantidade_recebida: produto.quantidade_recebida ?? 0,
-    numero_nota_fiscal: produto.numero_nota_fiscal || "",
-    quantidade_minima_estoque: produto.quantidade_minima_estoque ?? 0,
-    data_entrada: produto.data_entrada || "",
-    responsavel: produto.responsavel || "",
   }));
 }
-
-/**
- * Busca produtos com data de validade próxima.
- * Consideramos vencendo os produtos com menos de 30 dias para expirar.
- */
-export async function buscarProdutosProximosVencimento(): Promise<Produto[]> {
-  const { data, error } = await supabase.from("produtos").select("*");
+export async function registrarSaidaProduto(produto: SaidaProduto) {
+  const { error } = await supabase
+    .from("movimentacoes_estoque")
+    .insert([
+      {
+        produto_id: produto.produto_id,
+        tipo_movimentacao: "saida",
+        codigo_barras: produto.codigo_barras,
+        nome_produto: produto.nome_produto,
+        unidade_medida: produto.unidade_medida,
+        quantidade: produto.quantidade,
+        data_entrada: produto.data_saida,
+        responsavel: produto.responsavel,
+      },
+    ]);
 
   if (error) {
-    console.error(
-      "Erro ao buscar produtos próximos do vencimento:",
-      error.message
-    );
-    return [];
+    throw new Error(`Erro ao registrar saída: ${error.message}`);
   }
-
-  const hoje = dayjs();
-  const produtosVencendo = data.filter((produto) => {
-    if (!produto.data_validade) return false; // Se não tem validade, ignora
-    const diasParaVencer = dayjs(produto.data_validade).diff(hoje, "day");
-    return diasParaVencer <= 30 && diasParaVencer >= 0; // Vencendo nos próximos 30 dias
-  });
-
-  return produtosVencendo;
 }

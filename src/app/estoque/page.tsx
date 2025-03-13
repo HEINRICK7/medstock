@@ -1,10 +1,7 @@
 "use client";
 
 import { JSX, useEffect, useState } from "react";
-import {
-  buscarProdutosEstoqueBaixo,
-  buscarProdutosProximosVencimento,
-} from "@/lib/estoqueServices";
+import { buscarProdutosEstoque  } from "@/lib/estoqueServices"; // Ajustado para buscar estoque real
 import {
   Table,
   Spin,
@@ -20,12 +17,12 @@ import {
 } from "antd";
 import { AlertTriangle, XCircle, Clock, RefreshCcw, FileText } from "lucide-react";
 import dayjs from "dayjs";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const { Title } = Typography;
 const { Option } = Select;
 const { RangePicker } = DatePicker;
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 
 interface Produto {
   id: string;
@@ -34,22 +31,13 @@ interface Produto {
   tipo_produto: string;
   categoria: string;
   unidade_medida: string;
-  fabricante?: string;
-  fornecedor?: string;
-  numero_lote?: string;
-  descricao?: string;
-  data_fabricacao?: string;
-  data_validade?: string;
-  quantidade_recebida: number;
-  numero_nota_fiscal?: string;
+  quantidade: number; // Ajustado para refletir a quantidade real
   quantidade_minima_estoque: number;
-  data_entrada: string;
-  responsavel: string;
+  data_validade?: string;
 }
 
 export default function Estoque() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
-  const [produtosVencendo, setProdutosVencendo] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
 
   // 🔹 Estados para os filtros
@@ -59,6 +47,16 @@ export default function Estoque() {
     null
   );
   const [pageSize, setPageSize] = useState(5);
+
+  useEffect(() => {
+    async function fetchProdutos() {
+      const produtosEstoque = await buscarProdutosEstoque();
+      setProdutos(produtosEstoque);
+      setLoading(false);
+    }
+    fetchProdutos();
+  }, []);
+
   const gerarPDF = () => {
     const doc = new jsPDF();
 
@@ -76,53 +74,24 @@ export default function Estoque() {
     autoTable(doc, {
       startY: 35,
       head: [
-        [
-          "Código",
-          "Nome",
-          "Categoria",
-          "Quantidade",
-          "Estoque Mínimo",
-          "Data de Validade",
-          "Status",
-        ],
+        ["Código", "Nome", "Categoria", "Qtd Estoque", "Estoque Mínimo", "Data de Validade", "Status"],
       ],
       body: produtosFiltrados.map((produto) => [
         produto.codigo_barras,
         produto.nome_produto,
         produto.categoria,
-        produto.quantidade_recebida,
+        produto.quantidade, // 🔹 Quantidade real do estoque
         produto.quantidade_minima_estoque,
-        produto.data_validade
-          ? dayjs(produto.data_validade).format("DD/MM/YYYY")
-          : "-",
-        getStatusTexto(
-          produto.quantidade_recebida,
-          produto.quantidade_minima_estoque,
-          produto.data_validade as string
-        ),
+        produto.data_validade ? dayjs(produto.data_validade).format("DD/MM/YYYY") : "-",
+        getStatusTexto(produto.quantidade, produto.quantidade_minima_estoque, produto.data_validade),
       ]),
       theme: "grid",
     });
 
     doc.save("Relatorio_Estoque.pdf");
   };
-  useEffect(() => {
-    async function fetchProdutos() {
-      const produtosBaixo = await buscarProdutosEstoqueBaixo();
-      const produtosVenc = await buscarProdutosProximosVencimento();
 
-      setProdutos(produtosBaixo);
-      setProdutosVencendo(produtosVenc);
-      setLoading(false);
-    }
-    fetchProdutos();
-  }, []);
-
-  const getStatusTexto = (
-    quantidade: number,
-    minimo: number,
-    validade?: string
-  ): string[] => {
+  const getStatusTexto = (quantidade: number, minimo: number, validade?: string): string[] => {
     const hoje = dayjs();
     const diasParaVencer = validade ? dayjs(validade).diff(hoje, "day") : null;
     const status: string[] = [];
@@ -178,7 +147,6 @@ export default function Estoque() {
       }
     }
 
-    // Se não tiver nenhum status crítico, adicionar "Ok"
     if (statusTags.length === 0) {
       statusTags.push(
         <Tag color="green" key="ok">
@@ -190,234 +158,51 @@ export default function Estoque() {
     return statusTags;
   };
 
-  const produtosFiltrados = [...produtos, ...produtosVencendo].filter(
-    (produto) => {
-      if (categoriaFiltro && produto.categoria !== categoriaFiltro)
+  const produtosFiltrados = produtos.filter((produto) => {
+    if (categoriaFiltro && produto.categoria !== categoriaFiltro) return false;
+    if (validadeFiltro) {
+      const validadeProduto = dayjs(produto.data_validade);
+      if (validadeProduto.isBefore(dayjs(validadeFiltro[0])) || validadeProduto.isAfter(dayjs(validadeFiltro[1]))) {
         return false;
-
-      if (validadeFiltro) {
-        const validadeProduto = dayjs(produto.data_validade);
-        if (
-          validadeProduto.isBefore(dayjs(validadeFiltro[0])) ||
-          validadeProduto.isAfter(dayjs(validadeFiltro[1]))
-        ) {
-          return false;
-        }
       }
-
-      if (statusFiltro) {
-        const statusProduto = getStatusTexto(
-          produto.quantidade_recebida,
-          produto.quantidade_minima_estoque,
-          produto.data_validade
-        );
-
-        // Garante que pelo menos um dos status do produto corresponde ao filtro
-        if (!statusProduto.some((status) => status === statusFiltro)) {
-          return false;
-        }
-      }
-
-      return true;
     }
-  );
-
-  const prioridadeStatus = [
-    "Vencido",
-    "Em Falta",
-    "Estoque Baixo",
-    "Próx. do Vencimento",
-    "Ok",
-  ];
-
-  produtosFiltrados.sort((a, b) => {
-    const statusAList = getStatusTexto(
-      a.quantidade_recebida,
-      a.quantidade_minima_estoque,
-      a.data_validade
-    );
-    const statusBList = getStatusTexto(
-      b.quantidade_recebida,
-      b.quantidade_minima_estoque,
-      b.data_validade
-    );
-
-    const prioridadeA = Math.min(
-      ...statusAList.map((status) =>
-        prioridadeStatus.indexOf(status) !== -1
-          ? prioridadeStatus.indexOf(status)
-          : Infinity
-      )
-    );
-    const prioridadeB = Math.min(
-      ...statusBList.map((status) =>
-        prioridadeStatus.indexOf(status) !== -1
-          ? prioridadeStatus.indexOf(status)
-          : Infinity
-      )
-    );
-
-    return prioridadeA - prioridadeB;
+    if (statusFiltro) {
+      const statusProduto = getStatusTexto(produto.quantidade, produto.quantidade_minima_estoque, produto.data_validade);
+      if (!statusProduto.some((status) => status === statusFiltro)) {
+        return false;
+      }
+    }
+    return true;
   });
 
   return (
     <div style={{ padding: 24 }}>
       <Title level={2}>Estoque de Produtos</Title>
-
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          flexWrap: "wrap",
-          gap: 12,
-          marginBottom: 16,
-        }}
-      >
-        <Select
-          placeholder="Filtrar por Categoria"
-          allowClear
-          style={{ width: 200, minWidth: 160 }}
-          onChange={(value) => setCategoriaFiltro(value)}
-        >
-          <Option value="analgesicos">Analgésicos</Option>
-          <Option value="antibioticos">Antibióticos</Option>
-          <Option value="equipamentos_medicos">Equipamentos Médicos</Option>
-          <Option value="material_consumo">Material de Consumo</Option>
-        </Select>
-
-        <Select
-          placeholder="Filtrar por Status"
-          allowClear
-          style={{ width: 200, minWidth: 160 }}
-          onChange={(value) => setStatusFiltro(value)}
-        >
-          <Option value="Em Falta">Em Falta</Option>
-          <Option value="Estoque Baixo">Estoque Baixo</Option>
-          <Option value="Próx. do Vencimento">Próx. do Vencimento</Option>
-          <Option value="Vencido">Vencido</Option>
-        </Select>
-
-        <RangePicker
-          placeholder={["Data Inicial", "Data Final"]}
-          format="DD/MM/YYYY"
-          onChange={(dates) =>
-            setValidadeFiltro(
-              dates && dates[0] && dates[1]
-                ? [dates[0].format(), dates[1].format()]
-                : null
-            )
-          }
-        />
-
-        <Button
-          icon={<RefreshCcw size={16} />}
-          onClick={() => {
-            setCategoriaFiltro(null);
-            setStatusFiltro(null);
-            setValidadeFiltro(null);
-          }}
-        >
-          Limpar
-        </Button>
-      </div>
       <Card style={{ padding: 24 }}>
-        <Row
-          style={{
-            marginBottom: 16,
-            display: "flex",
-            justifyContent: "space-between",
-          }}
-        >
+        <Row justify="space-between">
           <Col>
             <span>Itens por página: </span>
-            <Select
-              value={pageSize}
-              onChange={(value) => setPageSize(value)}
-              style={{ width: 80, marginLeft: 8 }}
-            >
+            <Select value={pageSize} onChange={(value) => setPageSize(value)} style={{ width: 80, marginLeft: 8 }}>
               <Option value={5}>5</Option>
               <Option value={10}>10</Option>
-              <Option value={20}>20</Option>
             </Select>
           </Col>
           <Col>
-            <Button
-              type="primary"
-              icon={<FileText size={16} />}
-              onClick={gerarPDF}
-            >
+            <Button type="primary" icon={<FileText size={16} />} onClick={gerarPDF}>
               Gerar Relatório
             </Button>
           </Col>
         </Row>
         <Divider />
-        {loading ? (
-          <Spin size="large" />
-        ) : (
-          <Table
-            dataSource={produtosFiltrados}
-            pagination={{ pageSize }}
-            scroll={{ x: "max-content" }} // 🔹 Responsivo com rolagem horizontal
+        {loading ? <Spin size="large" /> : (
+          <Table dataSource={produtosFiltrados} pagination={{ pageSize }} rowKey="id"
             columns={[
-              {
-                title: "Código",
-                dataIndex: "codigo_barras",
-                key: "codigo",
-                responsive: ["xs", "sm", "md", "lg", "xl"],
-              },
-              {
-                title: "Nome",
-                dataIndex: "nome_produto",
-                key: "nome",
-                ellipsis: true,
-                responsive: ["xs", "sm", "md", "lg", "xl"],
-              },
-              {
-                title: "Categoria",
-                dataIndex: "categoria",
-                key: "categoria",
-                responsive: ["sm", "md", "lg", "xl"],
-              },
-              {
-                title: "Quantidade",
-                dataIndex: "quantidade_recebida",
-                key: "quantidade",
-                responsive: ["xs", "sm", "md", "lg", "xl"],
-              },
-              {
-                title: "Estoque Mínimo",
-                dataIndex: "quantidade_minima_estoque",
-                key: "limite",
-                responsive: ["md", "lg", "xl"],
-              },
-              {
-                title: "Data de Validade",
-                dataIndex: "data_validade",
-                key: "validade",
-                render: (data_validade: string) =>
-                  data_validade
-                    ? dayjs(data_validade).format("DD/MM/YYYY")
-                    : "-",
-                responsive: ["md", "lg", "xl"],
-              },
-              {
-                title: "Status",
-                key: "status",
-                render: (_, record) => (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                    {getStatus(
-                      record.quantidade_recebida,
-                      record.quantidade_minima_estoque,
-                      record.data_validade
-                        ? dayjs(record.data_validade).format("YYYY-MM-DD")
-                        : undefined
-                    )}
-                  </div>
-                ),
-                responsive: ["xs", "sm", "md", "lg", "xl"],
-              },
+              { title: "Código", dataIndex: "codigo_barras", key: "codigo" },
+              { title: "Nome", dataIndex: "nome_produto", key: "nome" },
+              { title: "Quantidade Estoque", dataIndex: "quantidade", key: "quantidade" },
+              { title: "Estoque Mínimo", dataIndex: "quantidade_minima_estoque", key: "estoque_minimo" },
+              { title: "Status", key: "status", render: (_, record) => getStatus(record.quantidade, record.quantidade_minima_estoque, record.data_validade) },
             ]}
-            rowKey="id"
           />
         )}
       </Card>

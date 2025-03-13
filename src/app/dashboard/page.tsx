@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, Col, Row, Statistic, Spin } from "antd";
+import { Card, Col, Row, Statistic, Table, Spin, Typography } from "antd";
 import { supabase } from "@/lib/supabase";
 import {
   Package,
@@ -11,18 +11,8 @@ import {
   ArrowDownCircle,
 } from "lucide-react";
 import dayjs from "dayjs";
-import {
-  BarChart,
-  LineChart,
-  Line,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+
+const { Title } = Typography;
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
@@ -34,8 +24,7 @@ export default function Dashboard() {
     saidasUltimoMes: 0,
     produtosVencidos: 0,
   });
-  const [categoriasDistribuidas, setCategoriasDistribuidas] = useState([]);
-  const [movimentacaoMensal, setMovimentacaoMensal] = useState([]);
+  const [auditoria, setAuditoria] = useState([]);
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -43,15 +32,14 @@ export default function Dashboard() {
         const { count: totalProdutos } = await supabase
           .from("produtos")
           .select("id", { count: "exact" });
-
         const { count: emFalta } = await supabase
-          .from("produtos")
+          .from("estoque_produtos")
           .select("id", { count: "exact" })
-          .eq("quantidade_recebida", 0);
-
+          .eq("quantidade", 0);
         const { count: estoqueBaixo } = await supabase
-          .from("estoque_baixo") // Usando a View
-          .select("id", { count: "exact" });
+          .from("estoque_produtos")
+          .select("id", { count: "exact" })
+          .lt("quantidade", 5);
 
         const hoje = dayjs().format("YYYY-MM-DD");
         const limite = dayjs().add(30, "day").format("YYYY-MM-DD");
@@ -60,8 +48,6 @@ export default function Dashboard() {
           .select("id", { count: "exact" })
           .gte("data_validade", hoje)
           .lte("data_validade", limite);
-
-        // Buscar Produtos Vencidos
         const { count: produtosVencidos } = await supabase
           .from("produtos")
           .select("id", { count: "exact" })
@@ -69,9 +55,9 @@ export default function Dashboard() {
 
         const mesPassado = dayjs().subtract(1, "month").format("YYYY-MM-DD");
         const { count: saidasUltimoMes } = await supabase
-          .from("saidas")
+          .from("movimentacoes_estoque")
           .select("id", { count: "exact" })
-          .gte("data_saida", mesPassado);
+          .gte("data_movimentacao", mesPassado);
 
         setDados({
           totalProdutos: totalProdutos || 0,
@@ -82,23 +68,17 @@ export default function Dashboard() {
           produtosVencidos: produtosVencidos || 0,
         });
 
-        // Buscar categorias distribuídas
-        const { data: categoriasData } = await supabase.rpc(
-          "categorias_distribuidas"
-        );
-        setCategoriasDistribuidas(categoriasData || []);
-
-        // Buscar movimentação mensal
-        const { data: movimentacaoData } = await supabase.rpc(
-          "movimentacao_mensal"
-        );
-        setMovimentacaoMensal(movimentacaoData || []);
+        // 🔹 Buscar histórico de movimentações (entrada, saída, edição e exclusão)
+        const { data: movimentacoes } = await supabase
+          .from("auditoria_movimentacoes")
+          .select("*")
+          .order("data_movimentacao", { ascending: false });
+        setAuditoria(movimentacoes || []);
       } catch (error) {
         console.error("Erro ao buscar dados da dashboard", error);
       }
       setLoading(false);
     }
-
     fetchDashboardData();
   }, []);
 
@@ -114,7 +94,6 @@ export default function Dashboard() {
             />
           </Card>
         </Col>
-
         <Col xs={24} sm={12} md={8}>
           <Card>
             <Statistic
@@ -124,7 +103,6 @@ export default function Dashboard() {
             />
           </Card>
         </Col>
-
         <Col xs={24} sm={12} md={8}>
           <Card>
             <Statistic
@@ -146,7 +124,6 @@ export default function Dashboard() {
             />
           </Card>
         </Col>
-
         <Col xs={24} sm={12} md={8}>
           <Card>
             <Statistic
@@ -156,7 +133,6 @@ export default function Dashboard() {
             />
           </Card>
         </Col>
-
         <Col xs={24} sm={12} md={8}>
           <Card>
             <Statistic
@@ -168,34 +144,46 @@ export default function Dashboard() {
         </Col>
       </Row>
 
-      <Row gutter={16} style={{ marginTop: 32 }}>
-        <Col xs={24} sm={12} md={12}>
-          <Card title="Categorias Mais Distribuídas">
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={categoriasDistribuidas}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="categoria" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="count" fill="#8884d8" />
-              </BarChart>
-            </ResponsiveContainer>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} md={12}>
-          <Card title="Entrada e Saída de Produtos">
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={movimentacaoMensal}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="data_saida" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="sum" stroke="#82ca9d" />
-              </LineChart>
-            </ResponsiveContainer>
+      {/* 🔹 Tabela de Auditoria - Todas as movimentações */}
+      <Row style={{ marginTop: 32 }}>
+        <Col span={24}>
+          <Card title="Histórico de Movimentações">
+            <Table
+              dataSource={auditoria}
+              rowKey="id"
+              pagination={{ pageSize: 10 }}
+              columns={[
+                { title: "Usuário", dataIndex: "usuario", key: "usuario" },
+                { title: "Produto", dataIndex: "nome_produto", key: "produto" },
+                {
+                  title: "Código de Barras",
+                  dataIndex: "codigo_barras",
+                  key: "codigo",
+                },
+                {
+                  title: "Quantidade",
+                  dataIndex: "quantidade",
+                  key: "quantidade",
+                },
+                {
+                  title: "Destino",
+                  dataIndex: "destino",
+                  key: "destino",
+                  render: (destino) => destino || "-",
+                },
+                {
+                  title: "Tipo de Movimentação",
+                  dataIndex: "tipo_movimentacao",
+                  key: "tipo",
+                },
+                {
+                  title: "Data",
+                  dataIndex: "data_movimentacao",
+                  key: "data",
+                  render: (data) => dayjs(data).format("DD/MM/YYYY HH:mm"),
+                },
+              ]}
+            />
           </Card>
         </Col>
       </Row>

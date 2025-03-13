@@ -36,7 +36,7 @@ interface Produto {
   descricao?: string;
   data_fabricacao?: string;
   data_validade?: string;
-  quantidade_recebida: number;
+  quantidade: number;
   numero_nota_fiscal?: number;
   quantidade_minima_estoque: number;
   data_entrada: string;
@@ -106,7 +106,7 @@ export default function CadastrarProduto() {
         values.data_validade
           ? dayjs(values.data_validade).format("DD-MM-YYYY")
           : null,
-      quantidade_recebida: values.quantidade_recebida,
+      quantidade: values.quantidade,
       numero_nota_fiscal: values.numero_nota_fiscal || null,
       quantidade_minima_estoque: values.quantidade_minima_estoque,
       data_entrada: dayjs(values.data_entrada).format("DD-MM-YYYY"),
@@ -321,7 +321,7 @@ export default function CadastrarProduto() {
               <Col xs={24} sm={12} md={12}>
                 <Form.Item
                   label="Quantidade Recebida"
-                  name="quantidade_recebida"
+                  name="quantidade"
                   rules={[
                     { required: true, message: "Por favor, insira quantidade" },
                   ]}

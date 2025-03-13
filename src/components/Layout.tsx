@@ -13,7 +13,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
     <Layout style={{ minHeight: "100vh" }}>
       {/* ✅ Só mostra a sidebar se a rota não for `/login` */}
       {pathname !== "/" && <Sidebar />}
-      
+
       <Layout>
         <Content style={{ padding: 24, background: "#F2F2F2" }}>
           {children}

@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import { Input, Button, Form, Card, message, App, Image } from "antd";
-import { MailOutlined, LockOutlined } from "@ant-design/icons";
+import { MailOutlined, LockOutlined, ArrowLeftOutlined } from "@ant-design/icons";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const [api, contextHolder] = message.useMessage(); // ✅ Corrige o erro
+  const [api, contextHolder] = message.useMessage();
 
   const handleLogin = async (values: { email: string; password: string }) => {
     setLoading(true);
@@ -21,11 +21,34 @@ export default function Login() {
     });
 
     if (error) {
-      api.error("Erro ao fazer login: " + error.message); // ✅ Agora dentro do contexto correto
+      api.error("Erro ao fazer login: " + error.message);
+      setLoading(false);
+      return;
+    }
+
+    // 🔹 Buscar dados do usuário na tabela 'usuarios'
+    const { data: userData, error: userError } = await supabase
+      .from("usuarios")
+      .select("id, nome, role, cargo, email")
+      .eq("id", data.user?.id)
+      .single();
+
+    if (userError || !userData) {
+      api.error("Erro ao obter informações do usuário.");
+      setLoading(false);
+      return;
+    }
+
+    // 🔹 Armazena dados do usuário no localStorage para controle de permissões
+    localStorage.setItem("usuario", JSON.stringify(userData));
+
+    api.success("Login realizado com sucesso!");
+
+    // 🔹 Redireciona conforme o tipo de usuário
+    if (userData.role === "user_postinho") {
+      router.push("/pedidos");
     } else {
-      api.success("Login realizado com sucesso!");
-      console.log("Usuário logado:", data);
-      router.push("/dashboard");
+      router.push("/dashboard"); // Admin e outros usuários vão para a dashboard
     }
 
     setLoading(false);
@@ -33,7 +56,7 @@ export default function Login() {
 
   return (
     <App>
-      {contextHolder} {/* ✅ Isso garante que message funcione corretamente */}
+      {contextHolder}
       <div
         style={{
           height: "100vh",
@@ -41,8 +64,23 @@ export default function Login() {
           justifyContent: "center",
           alignItems: "center",
           backgroundColor: "#F2F2F2",
+          position: "relative",
         }}
       >
+        <Button
+          type="link"
+          icon={<ArrowLeftOutlined />}
+          onClick={() => router.push("/")}
+          style={{
+            position: "absolute",
+            top: 20,
+            left: 20,
+            fontSize: "16px",
+          }}
+        >
+          Voltar para Home
+        </Button>
+
         <Card
           style={{
             width: 800,
@@ -53,7 +91,14 @@ export default function Login() {
             backgroundColor: "#FFFFFF",
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 24 }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              marginBottom: 24,
+            }}
+          >
             <Image
               src="/assets/logo_medstock.png"
               alt="MedStock Logo"
